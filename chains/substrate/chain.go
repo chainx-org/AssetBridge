@@ -35,6 +35,7 @@ import (
 	metrics "github.com/rjman-self/platdot-utils/metrics/types"
 	"github.com/rjman-self/platdot-utils/msg"
 	"github.com/rjman-self/substrate-go/client"
+	"github.com/rjman-self/substrate-go/expand"
 	"github.com/rjmand/go-substrate-rpc-client/v2/types"
 )
 
@@ -122,8 +123,12 @@ func InitializeChain(cfg *core.ChainConfig, logger log15.Logger, sysErr chan<- e
 	switch cfg.Id {
 	case config.Kusama:
 		cli.SetPrefix(ss58.PolkadotPrefix)
-	case config.ChainX:
+	case config.ChainXBTC:
 		cli.SetPrefix(ss58.ChainXPrefix)
+		cli.Name = expand.ChainXbtc
+	case config.ChainXPCX:
+		cli.SetPrefix(ss58.ChainXPrefix)
+		cli.Name = expand.ChainXpcx
 	case config.Polkadot:
 		cli.SetPrefix(ss58.PolkadotPrefix)
 	default:

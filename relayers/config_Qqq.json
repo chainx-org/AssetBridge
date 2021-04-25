@@ -34,7 +34,7 @@
       }
     },
     {
-      "name": "chainx",
+      "name": "chainxbtc",
       "type": "substrate",
       "id": "3",
       "endpoint": "wss://chainx.supercube.pro/ws",
@@ -49,6 +49,26 @@
         "OtherRelayer3": "0xa45a0ddd81da79f65cbcfeefc8e62382b1f56ccbbdd9533f77cdc49172cca33d",
         "OtherRelayer4": "0xe6c2b6c4a5d3a770814f3ebe99893d1bb66e8f0d086a2badfcbb481b043ada1a",
         "ResourceId": "0x0000000000000000000000000000000000000000000000000000000000000001",
+        "MaxWeight": "22698000000",
+        "DestId": "2"
+      }
+    },
+    {
+      "name": "chainxpcx",
+      "type": "substrate",
+      "id": "7",
+      "endpoint": "wss://chainx.supercube.pro/ws",
+      "from": "12pkkkKCovEzByPTjjK1qtKwPi1Pto1AX519UxTU4FJx6iGJ",
+      "opts": {
+        "MultiSignAddress": "0x83b0e4664507e7072dd2b30e9c5f68a708979e741a965048fb1ccbc61bd331f5",
+        "TotalRelayer": "5",
+        "CurrentRelayerNumber": "2",
+        "MultiSignThreshold": "3",
+        "OtherRelayer1": "0x0a19674301c56a1721feb98dbe93cfab911a8c1bed127f598ef93b374bcc6e71",
+        "OtherRelayer2": "0x923eeef27b93315c97e63e0c1284b7433ffbc413a58da0626a63955a48586075",
+        "OtherRelayer3": "0xa45a0ddd81da79f65cbcfeefc8e62382b1f56ccbbdd9533f77cdc49172cca33d",
+        "OtherRelayer4": "0xe6c2b6c4a5d3a770814f3ebe99893d1bb66e8f0d086a2badfcbb481b043ada1a",
+        "ResourceId": "0x0000000000000000000000000000000000000000000000000000000000000003",
         "MaxWeight": "22698000000",
         "DestId": "2"
       }

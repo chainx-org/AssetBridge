@@ -9,6 +9,7 @@ import (
 	"github.com/JFJun/go-substrate-crypto/ss58"
 	"github.com/Rjman-self/BBridge/config"
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/rjman-self/substrate-go/expand"
 	"github.com/rjman-self/substrate-go/expand/base"
 	"github.com/rjman-self/substrate-go/models"
 	"strconv"
@@ -162,8 +163,10 @@ func (l *listener) pollBlocks() error {
 				switch l.chainId {
 				case config.Kusama:
 					fmt.Printf("Kusama Block is #%v\n", currentBlock)
-				case config.ChainX:
-					fmt.Printf("ChainX Block is #%v\n", currentBlock)
+				case config.ChainXBTC:
+					fmt.Printf("ChainXBTC Block is #%v\n", currentBlock)
+				case config.ChainXPCX:
+					fmt.Printf("ChainXPCX Block is #%v\n", currentBlock)
 				case config.Polkadot:
 					fmt.Printf("Polkadot Block is #%v\n", currentBlock)
 				default:
@@ -208,7 +211,7 @@ func (l *listener) processBlock(currentBlock int64) error {
 	retryTimes := BlockRetryLimit
 	for {
 		if retryTimes == 0 {
-			l.log.Info("processBlock err, check it", "CurrentBlock", currentBlock)
+			l.logout("processBlock err, check it", currentBlock)
 			return nil
 		}
 		resp, err := l.client.GetBlockByNumber(currentBlock)
@@ -220,6 +223,9 @@ func (l *listener) processBlock(currentBlock int64) error {
 		}
 
 		for _, e := range resp.Extrinsic {
+			if e.Status == "fail" {
+				continue
+			}
 			// Current Extrinsic { Block, Index }
 			l.currentTx.BlockNumber = BlockNumber(currentBlock)
 			l.currentTx.MultiSignTxId = MultiSignTxId(e.ExtrinsicIndex)
@@ -230,30 +236,26 @@ func (l *listener) processBlock(currentBlock int64) error {
 			fromCheck := l.checkFromAddress(e)
 			toCheck := l.checkToAddress(e)
 			if e.Type == base.AsMultiNew && fromCheck {
-				l.log.Info("Find a MultiSign New extrinsic", "Block", currentBlock)
+				l.logout(FindNewMultiSigTx, currentBlock)
 				/// Mark New a MultiSign Transfer
 				l.markNew(e)
 			}
 
 			if e.Type == base.AsMultiApprove && fromCheck {
-				l.log.Info("Find a MultiSign Approve extrinsic", "Block", currentBlock)
+				l.logout(FindApproveMultiSigTx, currentBlock)
 				/// Mark Vote(Approve)
 				l.markVote(msTx, e)
 			}
 
 			if e.Type == base.AsMultiExecuted && fromCheck {
-				l.log.Info("Find a MultiSign Executed extrinsic", "Block", currentBlock)
+				l.logout(FindExecutedMultiSigTx, currentBlock)
 				// Find An existing multi-signed transaction in the record, and marks for executed status
 				l.markVote(msTx, e)
 				l.markExecution(msTx)
 			}
 
 			if e.Type == base.UtilityBatch && toCheck {
-				l.log.Info("Find a MultiSign Batch Extrinsic", "Block", currentBlock)
-				if e.Status == "fail" {
-					l.log.Info("But Batch Extrinsic Failed", "Block", currentBlock)
-					continue
-				}
+				l.logout(FindBatchMultiSigTx, currentBlock)
 
 				sendPubAddress, _ := ss58.DecodeToPub(e.FromAddress)
 				LostPubAddress, _ := ss58.DecodeToPub(l.lostAddress)
@@ -263,7 +265,7 @@ func (l *listener) processBlock(currentBlock int64) error {
 					if string(sendPubAddress) != string(LostPubAddress[:]) {
 						continue
 					} else {
-						l.log.Info("Recover a Lost BatchTx", "Block", currentBlock)
+						l.logout(FindLostMultiSigTx, currentBlock)
 					}
 				}
 
@@ -282,13 +284,12 @@ func (l *listener) processBlock(currentBlock int64) error {
 
 					actualAmount.Sub(amount, fee)
 					if actualAmount.Cmp(big.NewInt(0)) == -1 {
-						l.log.Error("Charge a neg amount", "Amount", actualAmount)
+						l.log.Error("Charge a neg amount", "Amount", actualAmount, "chain", l.name)
 						continue
 					}
 
-					sendAmount.Mul(actualAmount, big.NewInt(oneDToken))
-
-					fmt.Printf("DOT to BDOT, Amount is %v, Fee is %v, Actual_BDOT_Amount = %v\n", amount, fee, actualAmount)
+					sendAmount.Mul(actualAmount, big.NewInt(oneDOT))
+					l.logCrossChainTx("DOT", "BDOT", amount, fee, actualAmount)
 				} else if l.chainId == config.Kusama {
 					/// KSM / DOT is 12 digits.
 					fixedFee := big.NewInt(FixedKSMFee)
@@ -297,24 +298,26 @@ func (l *listener) processBlock(currentBlock int64) error {
 
 					actualAmount.Sub(amount, fee)
 					if actualAmount.Cmp(big.NewInt(0)) == -1 {
-						l.log.Error("Charge a neg amount", "Amount", actualAmount)
+						l.log.Error("Charge a neg amount", "Amount", actualAmount, "chain", l.name)
 						continue
 					}
-
-					sendAmount.Mul(actualAmount, big.NewInt(oneToken))
-
-					fmt.Printf("KSM to AKSM, Amount is %v, Fee is %v, Actual_AKSM_Amount = %v\n", amount, fee, actualAmount)
-				} else if l.chainId == config.ChainX && e.AssetId == XBTC {
+					sendAmount.Mul(actualAmount, big.NewInt(oneKSM))
+					l.logCrossChainTx("KSM", "AKSM", amount, fee, actualAmount)
+				} else if l.chainId == config.ChainXBTC && e.AssetId == XBTC {
 					/// XBTC is 8 digits.
-					sendAmount.Mul(amount, big.NewInt(oneXToken))
-					fmt.Printf("XBTC to BBTC, Amount is %v, Fee is %v, Actual_ABTC_Amount = %v\n", amount, 0, amount)
+					sendAmount.Mul(amount, big.NewInt(oneXBTC))
+					l.logCrossChainTx("XBTC", "BBTC", amount, big.NewInt(0), amount)
+				} else if l.chainId == config.ChainXPCX && e.AssetId == expand.PcxAssetId {
+					/// XBTC is 8 digits.
+					sendAmount.Mul(amount, big.NewInt(onePCX))
+					l.logCrossChainTx("PCX", "BPCX", amount, big.NewInt(0), amount)
 				} else {
 					/// Other Chain
 					continue
 				}
 
 				if e.Recipient == "" {
-					fmt.Printf("Not System.Remark\n")
+					l.log.Debug("Not System.Remark", "TxId", e.Txid, "From", e.FromAddress)
 					continue
 				}
 				var recipient types.AccountID
@@ -335,20 +338,7 @@ func (l *listener) processBlock(currentBlock int64) error {
 					l.resourceId,
 					recipient[:],
 				)
-
-				switch l.chainId {
-				case config.Kusama:
-					l.log.Info("Ready to send AKSM...", "Amount", amount, "Recipient", recipient, "FromChain", l.name, "FromId", l.chainId, "To", l.destId)
-				case config.Polkadot:
-					l.log.Info("Ready to send BDOT...", "Amount", amount, "Recipient", recipient, "FromChain", l.name, "FromId", l.chainId, "To", l.destId)
-				case config.ChainX:
-					if e.AssetId == XBTC {
-						l.log.Info("Ready to send BBTC...", "Amount", amount, "Recipient", recipient, "FromChain", l.name, "FromId", l.chainId, "To", l.destId)
-					}
-				default:
-					l.log.Info("Ready to send BDOT...", "Amount", amount, "Recipient", recipient, "FromChain", l.name, "FromId", l.chainId, "To", l.destId)
-				}
-
+				l.logReadyToSend(amount, recipient, e)
 				l.submitMessage(m, err)
 				if err != nil {
 					l.log.Error("Submit message to Writer", "Error", err)
@@ -431,4 +421,33 @@ func (l *listener) checkFromAddress(e *models.ExtrinsicResponse) bool {
 		}
 	}
 	return false
+}
+
+func (l *listener) logout (msg string, block int64) {
+	l.log.Info(msg, "Block", block, "chain", l.name)
+}
+
+func (l *listener) logCrossChainTx (tokenX string, tokenY string, amount *big.Int, fee *big.Int, actualAmount *big.Int) {
+	message := tokenX + " to " + tokenY
+	actualTitle := "Actual_" + tokenY + "Amount"
+	l.log.Info(message,"Amount", amount, "Fee", fee, actualTitle, actualAmount)
+}
+
+func (l *listener) logReadyToSend(amount *big.Int, recipient types.AccountID, e *models.ExtrinsicResponse) {
+	switch l.chainId {
+	case config.Kusama:
+		l.log.Info("Ready to send AKSM...", "Amount", amount, "Recipient", recipient, "FromChain", l.name, "FromId", l.chainId, "To", l.destId)
+	case config.Polkadot:
+		l.log.Info("Ready to send BDOT...", "Amount", amount, "Recipient", recipient, "FromChain", l.name, "FromId", l.chainId, "To", l.destId)
+	case config.ChainXBTC:
+		if e.AssetId == XBTC {
+			l.log.Info("Ready to send BBTC...", "Amount", amount, "Recipient", recipient, "FromChain", l.name, "FromId", l.chainId, "To", l.destId)
+		}
+	case config.ChainXPCX:
+		if e.AssetId == expand.PcxAssetId {
+			l.log.Info("Ready to send BPCX...", "Amount", amount, "Recipient", recipient, "FromChain", l.name, "FromId", l.chainId, "To", l.destId)
+		}
+	default:
+		l.log.Info("Ready to send BDOT...", "Amount", amount, "Recipient", recipient, "FromChain", l.name, "FromId", l.chainId, "To", l.destId)
+	}
 }

@@ -22,11 +22,11 @@ const DefaultBlockTimeout = int64(180) // 3 minutes
 
 /// ChainId Type
 const (
-	BSC      msg.ChainId = 2
-	Kusama   msg.ChainId = 1
-	ChainX   msg.ChainId = 3
-	PlatON   msg.ChainId = 4
-	Polkadot msg.ChainId = 5
+	BSC       msg.ChainId = 2
+	Kusama    msg.ChainId = 1
+	ChainXBTC msg.ChainId = 3
+	ChainXPCX msg.ChainId = 7
+	Polkadot  msg.ChainId = 5
 )
 
 type Config struct {

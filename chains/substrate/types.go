@@ -16,6 +16,39 @@ import (
 const (
 	XBTC			xevents.AssetId = 1
 )
+const (
+	/// MultiSigTx Message
+	FindNewMultiSigTx string = "Find a MultiSign New extrinsic"
+	FindApproveMultiSigTx string = "Find a MultiSign Approve extrinsic"
+	FindExecutedMultiSigTx string = "Find a MultiSign Executed extrinsic"
+	FindBatchMultiSigTx string = "Find a MultiSign Batch Extrinsic"
+	FindFailedBatchMultiSigTx = "But Batch Extrinsic Failed"
+	/// Other
+	StartATx string = "Start a redeemTx..."
+	MeetARepeatTx string = "Meet a Repeat Transaction"
+	FindLostMultiSigTx = "Find a Lost BatchTx"
+	TryToMakeNewMultiSigTx string = "Try to make a New MultiSign Tx!"
+	TryToApproveMultiSigTx string = "Try to Approve a MultiSignTx!"
+	FinishARedeemTx string = "Finish a redeemTx"
+	MultiSigExtrinsicExecuted string = "MultiSig extrinsic executed!"
+	/// Error
+	MaybeAProblem                         string = "There may be a problem with the deal"
+	RedeemTxTryTooManyTimes               string = "Redeem Tx failed, try too many times"
+	MultiSigExtrinsicError                string = "MultiSig extrinsic err! check Amount."
+	RedeemNegAmountError                  string = "Redeem a neg amount"
+	NewBalancesTransferCallError          string = "New Balances.transfer err"
+	NewBalancesTransferKeepAliveCallError string = "New Balances.transferKeepAlive err"
+	NewXAssetsTransferCallError           string = "New XAssets.Transfer err"
+	NewMultiCallError                     string = "New MultiCall err"
+	NewApiError                           string = "New api error"
+	SignMultiSignTxError                         = "Sign MultiSignTx err"
+	SubmitExtrinsicFailed                        = "Sign MultiSignTx err"
+	GetMetadataError                      string = "Get Metadata Latest err"
+	GetBlockHashError                     string = "Get BlockHash Latest err"
+	GetRuntimeVersionLatestError          string = "Get RuntimeVersionLatest Latest err"
+	GetStorageLatestError                 string = "Get StorageLatest Latest err"
+	CreateStorageKeyError                 string = "Create StorageKey err"
+)
 
 var AmountError = MultiSignTx{
 	BlockNumber:   -2,

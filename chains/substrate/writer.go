@@ -26,10 +26,15 @@ var _ core.Writer = &writer{}
 var TerminatedError = errors.New("terminated")
 
 const RoundInterval = time.Second * 6
-const RedeemRetryTimes = 100
-const oneToken = 1000000	/// 12 digits
-const oneDToken = 100000000 /// 10 digits
-const oneXToken = 10000000000 /// 8 digits
+
+const(
+	oneKSM = 1000000      /// KSM is 12 digits
+	oneDOT = 100000000    /// DOT is 10 digits
+	oneXBTC = 10000000000 /// XBTC is 8 digits
+	onePCX = 10000000000 /// XBTC is 8 digits
+)
+
+const xRole uint8 = 255
 
 type writer struct {
 	meta       *types.Metadata
@@ -80,7 +85,7 @@ func (w *writer) ResolveMessage(m msg.Message) bool {
 		w.log.Info("Not Mine", "msg.DestId", m.Destination, "w.l.chainId", w.listener.chainId)
 		return false
 	}
-	w.log.Info("Start a redeemTx...", "DepositNonce", m.DepositNonce, "From", m.Source, "To", m.Destination)
+	w.log.Info(StartATx, "DepositNonce", m.DepositNonce, "From", m.Source, "To", m.Destination)
 
 	/// Mark isProcessing
 	destMessage := Dest{
@@ -95,17 +100,17 @@ func (w *writer) ResolveMessage(m msg.Message) bool {
 		start := time.Now()
 		defer func() {
 			cost := time.Since(start)
-			fmt.Printf("Relayer #%v finish depositNonce %v cost %v\n", w.relayer.currentRelayer, m.DepositNonce, cost)
+			w.log.Info("Relayer Finish the Tx","Relayer", w.relayer.currentRelayer, "DepositNonce", m.DepositNonce, "CostTime", cost)
 		}()
 		retryTimes := BlockRetryLimit
 		for {
 			retryTimes--
 			// No more retries, stop RedeemTx
 			if retryTimes < BlockRetryLimit / 2 {
-				w.log.Warn("There may be a problem with the deal", "RetryTimes", retryTimes)
+				w.log.Warn(MaybeAProblem, "RetryTimes", retryTimes)
 			}
 			if retryTimes == 0 {
-				w.log.Error("Redeem Tx failed, try too many times\n")
+				w.logErr(RedeemTxTryTooManyTimes, nil)
 				break
 			}
 			isFinished, currentTx := w.redeemTx(m)
@@ -115,7 +120,7 @@ func (w *writer) ResolveMessage(m msg.Message) bool {
 
 				/// If currentTx is AmountError
 				if currentTx == AmountError {
-					w.log.Error("MultiSig extrinsic Error! check Amount.", "DepositNonce", m.DepositNonce)
+					w.log.Error(MultiSigExtrinsicError, "DepositNonce", m.DepositNonce)
 
 					var mutex sync.Mutex
 					mutex.Lock()
@@ -142,7 +147,7 @@ func (w *writer) ResolveMessage(m msg.Message) bool {
 				}
 				/// if currentTx is Executed or AmountError
 				if currentTx != YesVoted && currentTx != NotExecuted && currentTx != AmountError {
-					w.log.Info("MultiSig extrinsic executed!", "DepositNonce", m.DepositNonce, "OriginBlock", currentTx.BlockNumber)
+					w.log.Info(MultiSigExtrinsicExecuted, "DepositNonce", m.DepositNonce, "OriginBlock", currentTx.BlockNumber)
 
 					var mutex sync.Mutex
 					mutex.Lock()
@@ -163,7 +168,7 @@ func (w *writer) ResolveMessage(m msg.Message) bool {
 				}
 			}
 		}
-		w.log.Info("finish a redeemTx", "DepositNonce", m.DepositNonce)
+		w.log.Info(FinishARedeemTx, "DepositNonce", m.DepositNonce)
 	}()
 	return true
 }
@@ -184,7 +189,7 @@ func (w *writer) checkRepeat(m msg.Message) bool {
 		/// Check Repeat
 		if isRepeat {
 			repeatTime := RoundInterval
-			w.log.Info("Meet a Repeat Transaction", "DepositNonce", m.DepositNonce, "Waiting", repeatTime)
+			w.log.Info(MeetARepeatTx, "DepositNonce", m.DepositNonce, "Waiting", repeatTime)
 			time.Sleep(repeatTime)
 		} else {
 			break
@@ -221,19 +226,18 @@ func (w *writer) redeemTx(m msg.Message) (bool, MultiSignTx) {
 	// Get parameters of Balances.Transfer Call
 	if m.Destination == config.Polkadot {
 		// Convert BDOT amount to DOT amount
-		receiveAmount := big.NewInt(0).Div(amount, big.NewInt(oneDToken))
+		receiveAmount := big.NewInt(0).Div(amount, big.NewInt(oneDOT))
 
 		/// calculate fee and actualAmount
 		fixedFee := big.NewInt(FixedDOTFee)
 		additionalFee := big.NewInt(0).Div(receiveAmount, big.NewInt(FeeRate))
 		fee := big.NewInt(0).Add(fixedFee, additionalFee)
 		actualAmount.Sub(receiveAmount, fee)
+		w.logCrossChainTx("BDOT", "DOT", receiveAmount, fee, actualAmount)
 		if actualAmount.Cmp(big.NewInt(0)) == -1 {
-			fmt.Printf("AKSM to KSM, Amount is %v, Fee is %v, Actual_KSM_Amount = %v\n", receiveAmount, fee, actualAmount)
 			w.log.Error("Redeem a neg amount", "Amount", actualAmount)
 			return true, AmountError
 		}
-		fmt.Printf("BDOT to DOT, Amount is %v, Fee is %v, Actual_DOT_Amount = %v\n", receiveAmount, fee, actualAmount)
 		sendAmount := types.NewUCompact(actualAmount)
 
 		/// Create a transfer_keep_alive call
@@ -245,23 +249,23 @@ func (w *writer) redeemTx(m msg.Message) (bool, MultiSignTx) {
 			sendAmount,
 		)
 		if err != nil {
-			w.log.Error("New Balances.Transfer_Keep_Alive Call err", "err", err)
+			w.logErr(NewBalancesTransferKeepAliveCallError, err)
 		}
 	} else if m.Destination == config.Kusama {
 		// Convert AKSM amount to KSM amount
-		receiveAmount := big.NewInt(0).Div(amount, big.NewInt(oneToken))
+		receiveAmount := big.NewInt(0).Div(amount, big.NewInt(oneKSM))
 
 		/// calculate fee and actualAmount
 		fixedFee := big.NewInt(FixedKSMFee)
 		additionalFee := big.NewInt(0).Div(receiveAmount, big.NewInt(FeeRate))
 		fee := big.NewInt(0).Add(fixedFee, additionalFee)
 		actualAmount.Sub(receiveAmount, fee)
+
+		w.logCrossChainTx("BKSM", "KSM", receiveAmount, fee, actualAmount)
 		if actualAmount.Cmp(big.NewInt(0)) == -1 {
-			fmt.Printf("AKSM to KSM, Amount is %v, Fee is %v, Actual_KSM_Amount = %v\n", receiveAmount, fee, actualAmount)
-			w.log.Error("Redeem a neg amount", "Amount", actualAmount)
+			w.logErr(RedeemNegAmountError, nil)
 			return true, AmountError
 		}
-		fmt.Printf("AKSM to KSM, Amount is %v, Fee is %v, Actual_KSM_Amount = %v\n", receiveAmount, fee, actualAmount)
 		sendAmount := types.NewUCompact(actualAmount)
 
 		/// Create a transfer_keep_alive call
@@ -273,23 +277,21 @@ func (w *writer) redeemTx(m msg.Message) (bool, MultiSignTx) {
 			sendAmount,
 		)
 		if err != nil {
-			w.log.Error("New Balances.Transfer_Keep_Alive Call err", "err", err)
+			w.logErr(NewBalancesTransferKeepAliveCallError, err)
 		}
-	} else if m.Destination == config.ChainX {
+	} else if m.Destination == config.ChainXBTC {
 		/// Convert BBTC amount to XBTC amount
-		actualAmount.Div(amount, big.NewInt(oneXToken))
-
+		actualAmount.Div(amount, big.NewInt(oneXBTC))
 		if actualAmount.Cmp(big.NewInt(0)) == -1 {
-			w.log.Error("Redeem a neg amount", "Amount", actualAmount)
+			w.logErr(RedeemNegAmountError, nil)
 			return true, AmountError
 		}
 
-		fmt.Printf("BBTC to XBTC, Amount is %v, Fee is %v, Actual_XBTC_Amount = %v\n", actualAmount, 0, actualAmount)
-
+		w.logCrossChainTx("BBTC", "XBTC", actualAmount, big.NewInt(0), actualAmount)
 		sendAmount := types.NewUCompact(actualAmount)
 
 		// Create a XAssets.Transfer call
-		assetId := types.NewUCompactFromUInt(1)
+		assetId := types.NewUCompactFromUInt(uint64(XBTC))
 		var err error
 
 		c, err = types.NewCall(
@@ -298,13 +300,36 @@ func (w *writer) redeemTx(m msg.Message) (bool, MultiSignTx) {
 			/// ChainX XBTC2.0 Address
 			//multiAddressRecipient,
 			/// ChainX XBTC1.0 Address
-			uint8(255),
+			xRole,
 			addressRecipient,
 			assetId,
 			sendAmount,
 		)
 		if err != nil {
-			w.log.Error("New XAssets.Transfer err", "err", err)
+			w.logErr(NewXAssetsTransferCallError, err)
+		}
+	} else if m.Destination == config.ChainXPCX {
+		/// Convert BPCX amount to PCX amount
+		actualAmount.Div(amount, big.NewInt(onePCX))
+
+		w.logCrossChainTx("BPCX", "PCX", actualAmount, big.NewInt(0), actualAmount)
+		if actualAmount.Cmp(big.NewInt(0)) == -1 {
+			w.logErr(RedeemNegAmountError, nil)
+			return true, AmountError
+		}
+		sendAmount := types.NewUCompact(actualAmount)
+
+		// Create a XAssets.Transfer call
+		var err error
+		c, err = types.NewCall(
+			w.meta,
+			method,
+			xRole,
+			addressRecipient,
+			sendAmount,
+		)
+		if err != nil {
+			w.logErr(NewBalancesTransferCallError, err)
 		}
 	} else {
 		/// Other Chain
@@ -314,13 +339,11 @@ func (w *writer) redeemTx(m msg.Message) (bool, MultiSignTx) {
 		processRound := (w.relayer.currentRelayer + uint64(m.DepositNonce)) % w.relayer.totalRelayers
 		round := w.getRound()
 		if round.blockRound.Uint64() == processRound {
-			//fmt.Printf("process the message in block #%v, round #%v, depositnonce is %v\n", round.blockHeight, processRound, m.DepositNonce)
 			// Try to find a exist MultiSignTx
 			var maybeTimePoint interface{}
 			maxWeight := types.Weight(0)
 
 			// Traverse all of matched Tx, included New、Approve、Executed
-
 			for _, ms := range w.listener.msTxAsMulti {
 				// Validate parameter
 				if ms.DestAddress == destAddress && ms.DestAmount == actualAmount.String() {
@@ -348,16 +371,16 @@ func (w *writer) redeemTx(m msg.Message) (bool, MultiSignTx) {
 			}
 
 			if maxWeight == 0 {
-				w.log.Info("Try to make a New MultiSign Tx!", "depositNonce", m.DepositNonce)
+				w.log.Info(TryToMakeNewMultiSigTx, "depositNonce", m.DepositNonce)
 			} else {
 				_, height := maybeTimePoint.(TimePointSafe32).Height.Unwrap()
-				w.log.Info("Try to Approve a MultiSignTx!", "Block", height, "Index", maybeTimePoint.(TimePointSafe32).Index, "depositNonce", m.DepositNonce)
+				w.log.Info(TryToApproveMultiSigTx, "Block", height, "Index", maybeTimePoint.(TimePointSafe32).Index, "depositNonce", m.DepositNonce)
 			}
 
 			mc, err := types.NewCall(w.meta, mulMethod, w.relayer.multiSignThreshold, w.relayer.otherSignatories, maybeTimePoint, EncodeCall(c), false, maxWeight)
 
 			if err != nil {
-				w.log.Error("New MultiCall err", "err", err)
+				w.logErr(NewMultiCallError, err)
 			}
 			///END: Create a call of MultiSignTransfer
 
@@ -378,10 +401,15 @@ func (w *writer) submitTx(c types.Call) {
 	var err error
 
 	switch w.listener.chainId {
-	case config.ChainX:
+	case config.ChainXBTC:
 		api, err = gsrpc.NewSubstrateAPI(w.conn.url)
 		if err != nil {
-			fmt.Printf("New api error: %v\n", err)
+			w.logErr(NewApiError, err)
+		}
+	case config.ChainXPCX:
+		api, err = gsrpc.NewSubstrateAPI(w.conn.url)
+		if err != nil {
+			w.logErr(NewApiError, err)
 		}
 	case config.Polkadot:
 		api = w.msApi
@@ -400,26 +428,26 @@ func (w *writer) submitTx(c types.Call) {
 
 		meta, err := api.RPC.State.GetMetadataLatest()
 		if err != nil {
-			fmt.Printf("Get Metadata Latest err\n")
+			w.logErr(GetMetadataError, err)
 			retryTimes--
 			continue
 		}
 		genesisHash, err := api.RPC.Chain.GetBlockHash(0)
 		if err != nil {
-			fmt.Printf("GetBlockHash err\n")
+			w.logErr(GetBlockHashError, err)
 			retryTimes--
 			continue
 		}
 		rv, err := api.RPC.State.GetRuntimeVersionLatest()
 		if err != nil {
-			fmt.Printf("GetRuntimeVersionLatest err\n")
+			w.logErr(GetRuntimeVersionLatestError, err)
 			retryTimes--
 			continue
 		}
 
 		key, err := types.CreateStorageKey(meta, "System", "Account", w.relayer.kr.PublicKey, nil)
 		if err != nil {
-			fmt.Printf("CreateStorageKey err\n")
+			w.logErr(CreateStorageKeyError, err)
 			retryTimes--
 			continue
 		}
@@ -429,7 +457,7 @@ func (w *writer) submitTx(c types.Call) {
 		var accountInfo types.AccountInfo
 		ok, err := api.RPC.State.GetStorageLatest(key, &accountInfo)
 		if err != nil || !ok {
-			fmt.Printf("GetStorageLatest err\n")
+			w.logErr(GetStorageLatestError, err)
 			retryTimes--
 			continue
 		}
@@ -455,25 +483,26 @@ func (w *writer) submitTx(c types.Call) {
 			err = ext.MultiSign(w.relayer.kr, o)
 		case config.Polkadot:
 			err = ext.MultiSign(w.relayer.kr, o)
-		case config.ChainX:
+		case config.ChainXBTC:
 			/// ChainX XBTC2.0 MultiAddress
 			//err = ext.MultiSign(w.relayer.kr, o)
 			/// ChainX XBTC1.0 Address
+			err = ext.Sign(w.relayer.kr, o)
+		case config.ChainXPCX:
 			err = ext.Sign(w.relayer.kr, o)
 		default:
 			err = ext.MultiSign(w.relayer.kr, o)
 		}
 		if err != nil {
-			w.log.Error("MultiTx Sign err\n")
+			w.logErr(SignMultiSignTxError, err)
 		}
 
 		// Do the transfer and track the actual status
 		_, err = api.RPC.Author.SubmitAndWatchExtrinsic(ext)
 		if err != nil {
-			w.log.Error("Submit extrinsic failed", "Failed", err, "Nonce", nonce)
+			w.logErr(SubmitExtrinsicFailed, err)
 		}
 
-		//fmt.Printf("submit Tx, Relayer nonce is %v\n", nonce)
 		break
 	}
 }
@@ -557,4 +586,21 @@ func (w *writer) UpdateMetadate() {
 	if meta != nil {
 		w.meta = meta
 	}
+}
+
+func (w *writer) logout (msg string, block int64) {
+	w.log.Info(msg, "Block", block, "chain", w.listener.name)
+}
+
+func (w *writer) logErr (msg string, err error) {
+	w.log.Error(msg, "Error", err, "chain", w.listener.name)
+}
+func (w *writer) logInfo (msg string, block int64) {
+	w.log.Info(msg, "Block", block, "chain", w.listener.name)
+}
+
+func (w *writer) logCrossChainTx (tokenX string, tokenY string, amount *big.Int, fee *big.Int, actualAmount *big.Int) {
+	message := tokenX + " to " + tokenY
+	actualTitle := "Actual_" + tokenY + "Amount"
+	w.log.Info(message,"Amount", amount, "Fee", fee, actualTitle, actualAmount)
 }

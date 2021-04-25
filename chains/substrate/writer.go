@@ -27,8 +27,9 @@ var TerminatedError = errors.New("terminated")
 
 const RoundInterval = time.Second * 6
 const RedeemRetryTimes = 100
-const oneToken = 1000000
-const oneXToken = 10000000000
+const oneToken = 1000000	/// 12 digits
+const oneDToken = 100000000 /// 10 digits
+const oneXToken = 10000000000 /// 8 digits
 
 type writer struct {
 	meta       *types.Metadata
@@ -218,12 +219,12 @@ func (w *writer) redeemTx(m msg.Message) (bool, MultiSignTx) {
 	actualAmount := big.NewInt(0)
 
 	// Get parameters of Balances.Transfer Call
-	if m.Destination == config.Kusama || m.Destination == config.Polkadot {
-		// Convert AKSM amount to KSM amount
-		receiveAmount := big.NewInt(0).Div(amount, big.NewInt(oneToken))
+	if m.Destination == config.Polkadot {
+		// Convert BDOT amount to DOT amount
+		receiveAmount := big.NewInt(0).Div(amount, big.NewInt(oneDToken))
 
 		/// calculate fee and actualAmount
-		fixedFee := big.NewInt(FixedFee)
+		fixedFee := big.NewInt(FixedDOTFee)
 		additionalFee := big.NewInt(0).Div(receiveAmount, big.NewInt(FeeRate))
 		fee := big.NewInt(0).Add(fixedFee, additionalFee)
 		actualAmount.Sub(receiveAmount, fee)
@@ -232,14 +233,37 @@ func (w *writer) redeemTx(m msg.Message) (bool, MultiSignTx) {
 			w.log.Error("Redeem a neg amount", "Amount", actualAmount)
 			return true, AmountError
 		}
-
-		if m.Destination == config.Kusama {
-			fmt.Printf("AKSM to KSM, Amount is %v, Fee is %v, Actual_KSM_Amount = %v\n", receiveAmount, fee, actualAmount)
-		} else if m.Destination == config.Polkadot {
-			fmt.Printf("BDOT to DOT, Amount is %v, Fee is %v, Actual_DOT_Amount = %v\n", receiveAmount, fee, actualAmount)
-		}
-
+		fmt.Printf("BDOT to DOT, Amount is %v, Fee is %v, Actual_DOT_Amount = %v\n", receiveAmount, fee, actualAmount)
 		sendAmount := types.NewUCompact(actualAmount)
+
+		/// Create a transfer_keep_alive call
+		var err error
+		c, err = types.NewCall(
+			w.meta,
+			method,
+			multiAddressRecipient,
+			sendAmount,
+		)
+		if err != nil {
+			w.log.Error("New Balances.Transfer_Keep_Alive Call err", "err", err)
+		}
+	} else if m.Destination == config.Kusama {
+		// Convert AKSM amount to KSM amount
+		receiveAmount := big.NewInt(0).Div(amount, big.NewInt(oneToken))
+
+		/// calculate fee and actualAmount
+		fixedFee := big.NewInt(FixedKSMFee)
+		additionalFee := big.NewInt(0).Div(receiveAmount, big.NewInt(FeeRate))
+		fee := big.NewInt(0).Add(fixedFee, additionalFee)
+		actualAmount.Sub(receiveAmount, fee)
+		if actualAmount.Cmp(big.NewInt(0)) == -1 {
+			fmt.Printf("AKSM to KSM, Amount is %v, Fee is %v, Actual_KSM_Amount = %v\n", receiveAmount, fee, actualAmount)
+			w.log.Error("Redeem a neg amount", "Amount", actualAmount)
+			return true, AmountError
+		}
+		fmt.Printf("AKSM to KSM, Amount is %v, Fee is %v, Actual_KSM_Amount = %v\n", receiveAmount, fee, actualAmount)
+		sendAmount := types.NewUCompact(actualAmount)
+
 		/// Create a transfer_keep_alive call
 		var err error
 		c, err = types.NewCall(

@@ -55,7 +55,9 @@ const InitCapacity = 100
 var BlockRetryInterval = time.Second * 5
 var BlockRetryLimit = 20
 var KSM int64 = 1e12
-var FixedFee = KSM * 3 / 100
+var DOT int64 = 1e10
+var FixedKSMFee = KSM * 3 / 100
+var FixedDOTFee = DOT * 3 / 100
 var FeeRate int64 = 1000
 
 func NewListener(conn *Connection, name string, id msg.ChainId, startBlock uint64, endBlock uint64, lostAddress string, log log15.Logger, bs blockstore.Blockstorer,
@@ -156,7 +158,7 @@ func (l *listener) pollBlocks() error {
 				continue
 			}
 
-			if currentBlock%5 == 0 {
+			if currentBlock % 5 == 0 {
 				switch l.chainId {
 				case config.Kusama:
 					fmt.Printf("Kusama Block is #%v\n", currentBlock)
@@ -272,9 +274,9 @@ func (l *listener) processBlock(currentBlock int64) error {
 				}
 				sendAmount := big.NewInt(0)
 				actualAmount := big.NewInt(0)
-				if l.chainId == config.Kusama {
+				if l.chainId == config.Polkadot {
 					/// KSM / DOT is 12 digits.
-					fixedFee := big.NewInt(FixedFee)
+					fixedFee := big.NewInt(FixedDOTFee)
 					additionalFee := big.NewInt(0).Div(amount, big.NewInt(FeeRate))
 					fee := big.NewInt(0).Add(fixedFee, additionalFee)
 
@@ -284,12 +286,12 @@ func (l *listener) processBlock(currentBlock int64) error {
 						continue
 					}
 
-					sendAmount.Mul(actualAmount, big.NewInt(oneToken))
+					sendAmount.Mul(actualAmount, big.NewInt(oneDToken))
 
 					fmt.Printf("DOT to BDOT, Amount is %v, Fee is %v, Actual_BDOT_Amount = %v\n", amount, fee, actualAmount)
-				} else if l.chainId == config.Polkadot {
+				} else if l.chainId == config.Kusama {
 					/// KSM / DOT is 12 digits.
-					fixedFee := big.NewInt(FixedFee)
+					fixedFee := big.NewInt(FixedKSMFee)
 					additionalFee := big.NewInt(0).Div(amount, big.NewInt(FeeRate))
 					fee := big.NewInt(0).Add(fixedFee, additionalFee)
 

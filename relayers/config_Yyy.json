@@ -1,0 +1,57 @@
+{
+  "chains": [
+    {
+      "name": "bsc",
+      "type": "ethereum",
+      "id": "2",
+      "endpoint": "https://data-seed-prebsc-1-s3.binance.org:8545",
+      "from": "0x5B6D51affc88595aBc65d5c133C231cAFD69aA9E",
+      "opts": {
+        "bridge": "0xeEc45984F86f35AF9F6489fd30a7f0aa655c08dB",
+        "erc20Handler": "0x04c20C38e015e52685ba7DC34E839960a23C03CC",
+        "http": "true",
+        "networkId": "97"
+      }
+    },
+    {
+      "name": "polkadot",
+      "type": "substrate",
+      "id": "5",
+      "endpoint": "wss://dot.supercube.pro/ws",
+      "from": "16DZrdFXiQrdunjDPq4ppM4ZudqHYi16nivQPAHPSovBM7vd",
+      "opts": {
+        "MultiSignAddress": "0x83b0e4664507e7072dd2b30e9c5f68a708979e741a965048fb1ccbc61bd331f5",
+        "TotalRelayer": "5",
+        "CurrentRelayerNumber": "5",
+        "MultiSignThreshold": "3",
+        "OtherRelayer1": "0x0a19674301c56a1721feb98dbe93cfab911a8c1bed127f598ef93b374bcc6e71",
+        "OtherRelayer2": "0x50a80eb26a7fb43ff4f84ead705fc61c1d4074112e53f781a6b03c0c7504f663",
+        "OtherRelayer3": "0x923eeef27b93315c97e63e0c1284b7433ffbc413a58da0626a63955a48586075",
+        "OtherRelayer4": "0xa45a0ddd81da79f65cbcfeefc8e62382b1f56ccbbdd9533f77cdc49172cca33d",
+        "ResourceId": "0x0000000000000000000000000000000000000000000000000000000000000000",
+        "MaxWeight": "22698000000",
+        "DestId": "2"
+      }
+    },
+    {
+      "name": "chainx",
+      "type": "substrate",
+      "id": "3",
+      "endpoint": "wss://chainx.supercube.pro/ws",
+      "from": "16DZrdFXiQrdunjDPq4ppM4ZudqHYi16nivQPAHPSovBM7vd",
+      "opts": {
+        "MultiSignAddress": "0x83b0e4664507e7072dd2b30e9c5f68a708979e741a965048fb1ccbc61bd331f5",
+        "TotalRelayer": "5",
+        "CurrentRelayerNumber": "5",
+        "MultiSignThreshold": "3",
+        "OtherRelayer1": "0x0a19674301c56a1721feb98dbe93cfab911a8c1bed127f598ef93b374bcc6e71",
+        "OtherRelayer2": "0x50a80eb26a7fb43ff4f84ead705fc61c1d4074112e53f781a6b03c0c7504f663",
+        "OtherRelayer3": "0x923eeef27b93315c97e63e0c1284b7433ffbc413a58da0626a63955a48586075",
+        "OtherRelayer4": "0xa45a0ddd81da79f65cbcfeefc8e62382b1f56ccbbdd9533f77cdc49172cca33d",
+        "ResourceId": "0x0000000000000000000000000000000000000000000000000000000000000001",
+        "MaxWeight": "22698000000",
+        "DestId": "2"
+      }
+    }
+  ]
+}

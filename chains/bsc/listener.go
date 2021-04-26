@@ -7,20 +7,19 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/Rjman-self/BBridge/config"
 	"math/big"
 	"time"
 
 	"github.com/ChainSafe/log15"
-	eth "github.com/ethereum/go-ethereum"
-	"github.com/ethereum/go-ethereum/accounts/abi/bind"
-	ethcommon "github.com/ethereum/go-ethereum/common"
 	"github.com/Rjman-self/BBridge/bindings/Bridge"
 	"github.com/Rjman-self/BBridge/bindings/ERC20Handler"
 	"github.com/Rjman-self/BBridge/bindings/ERC721Handler"
 	"github.com/Rjman-self/BBridge/bindings/GenericHandler"
 	"github.com/Rjman-self/BBridge/chains"
 	utils "github.com/Rjman-self/BBridge/shared/bsc"
+	eth "github.com/ethereum/go-ethereum"
+	"github.com/ethereum/go-ethereum/accounts/abi/bind"
+	ethcommon "github.com/ethereum/go-ethereum/common"
 	"github.com/rjman-self/platdot-utils/blockstore"
 	metrics "github.com/rjman-self/platdot-utils/metrics/types"
 	"github.com/rjman-self/platdot-utils/msg"
@@ -128,17 +127,10 @@ func (l *listener) pollBlocks() error {
 				continue
 			}
 
-			if currentBlock.Uint64() % 5 == 0 {
-				switch l.cfg.id {
-				case config.BSC:
-					fmt.Printf("BSC Block is #%v\n", currentBlock)
-				default:
-					fmt.Printf("Eth Block is #%v\n", currentBlock)
-				}
-			}
+			l.logBlock(currentBlock.Uint64())
 
 			if endBlock.Uint64() != 0 && currentBlock.Uint64() > endBlock.Uint64(){
-				fmt.Printf("BSC listener work is Finished\n")
+				l.logInfo("Listener work is Finished", currentBlock.Int64())
 				return nil
 			}
 
@@ -232,4 +224,15 @@ func buildQuery(contract ethcommon.Address, sig utils.EventSig, startBlock *big.
 		},
 	}
 	return query
+}
+
+
+func (l *listener) logBlock(currentBlock uint64) {
+	if currentBlock % 5 == 0 {
+		message := l.cfg.name + " listening..."
+		l.log.Debug(message, "Block", currentBlock)
+	}
+}
+func (l *listener) logInfo (msg string, block int64) {
+	l.log.Info(msg, "Block", block, "chain", l.cfg.name)
 }

@@ -1,5 +1,5 @@
 
-# Platdot
+# BBridge
 
 ## Installation
 
@@ -9,9 +9,9 @@
 
 ### Building
 
-`git clone https://github.com/RJman-self/Platdot.git`
+`git clone https://github.com/RJman-self/Bbridge.git`
 
-`make build`: Builds `platdot` in `./build`.
+`make build`: Builds `bbridge` in `./build`.
 
 **or**
 

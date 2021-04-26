@@ -31,6 +31,12 @@ const (
 	TryToApproveMultiSigTx string = "Try to Approve a MultiSignTx!"
 	FinishARedeemTx string = "Finish a redeemTx"
 	MultiSigExtrinsicExecuted string = "MultiSig extrinsic executed!"
+	BlockNotYetFinalized string = "Block not yet finalized"
+	SubListenerWorkFinished string = "Sub listener work is Finished"
+	FailedToProcessCurrentBlock string = "Failed to process current block"
+	FailedToWriteToBlockStore string = "Failed to write to blockStore"
+	RelayerFinishTheTx string = "Relayer Finish the Tx"
+
 	/// Error
 	MaybeAProblem                         string = "There may be a problem with the deal"
 	RedeemTxTryTooManyTimes               string = "Redeem Tx failed, try too many times"
@@ -41,16 +47,19 @@ const (
 	NewXAssetsTransferCallError           string = "New XAssets.Transfer err"
 	NewMultiCallError                     string = "New MultiCall err"
 	NewApiError                           string = "New api error"
-	SignMultiSignTxError                         = "Sign MultiSignTx err"
-	SubmitExtrinsicFailed                        = "Sign MultiSignTx err"
+	SignMultiSignTxError                  string = "Sign MultiSignTx err"
+	SubmitExtrinsicFailed                 string = "Sign MultiSignTx err"
 	GetMetadataError                      string = "Get Metadata Latest err"
 	GetBlockHashError                     string = "Get BlockHash Latest err"
+	GetBlockByNumberError                 string = "Get BlockByNumber err"
 	GetRuntimeVersionLatestError          string = "Get RuntimeVersionLatest Latest err"
 	GetStorageLatestError                 string = "Get StorageLatest Latest err"
 	CreateStorageKeyError                 string = "Create StorageKey err"
+	ProcessBlockError                     string = "ProcessBlock err, check it"
+
 )
 
-var AmountError = MultiSignTx{
+var UnKnownError = MultiSignTx{
 	BlockNumber:   -2,
 	MultiSignTxId: 0,
 }

@@ -10,7 +10,7 @@ import (
 	"strconv"
 
 	"github.com/ethereum/go-ethereum/common"
-	utils "github.com/Rjman-self/BBridge/shared/platdot"
+	utils "github.com/Rjman-self/BBridge/shared/bsc"
 	"github.com/rjman-self/platdot-utils/core"
 	"github.com/rjman-self/platdot-utils/msg"
 )

@@ -348,7 +348,7 @@ func (w *writer) redeemTx(m msg.Message) (bool, MultiSignTx) {
 				// Validate parameter
 				if ms.DestAddress == destAddress && ms.DestAmount == actualAmount.String() {
 					/// Once MultiSign Extrinsic is executed, stop sending Extrinsic to Polkadot
-					finished, executed := w.isFinish(ms)
+					finished, executed := w.isFinish(ms, m)
 					if finished {
 						return finished, executed
 					}
@@ -532,7 +532,7 @@ func (w *writer) getRound() Round {
 	return round
 }
 
-func (w *writer) isFinish(ms MultiSigAsMulti) (bool, MultiSignTx) {
+func (w *writer) isFinish(ms MultiSigAsMulti, m msg.Message) (bool, MultiSignTx) {
 	/// Check isExecuted
 	if ms.Executed {
 		return true, ms.OriginMsTx
@@ -551,7 +551,7 @@ func (w *writer) isFinish(ms MultiSigAsMulti) (bool, MultiSignTx) {
 		}
 
 		if isVote {
-			w.log.Info("relayer has vote, wait others!", "Relayer", w.relayer.currentRelayer, "Block", ms.OriginMsTx.BlockNumber, "Index", ms.OriginMsTx.MultiSignTxId)
+			w.log.Info("relayer has vote, wait others!", "DepositNonce", m.DepositNonce, "Relayer", w.relayer.currentRelayer, "Block", ms.OriginMsTx.BlockNumber, "Index", ms.OriginMsTx.MultiSignTxId)
 			return true, YesVoted
 		}
 	}

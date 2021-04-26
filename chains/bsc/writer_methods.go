@@ -11,7 +11,7 @@ import (
 	"time"
 
 	log "github.com/ChainSafe/log15"
-	utils "github.com/Rjman-self/BBridge/shared/platdot"
+	utils "github.com/Rjman-self/BBridge/shared/bsc"
 	"github.com/rjman-self/platdot-utils/msg"
 )
 
@@ -116,34 +116,6 @@ func (w *writer) createErc20Proposal(m msg.Message) bool {
 	go w.watchThenExecute(m, data, dataHash, latestBlock)
 
 	w.voteProposal(m, dataHash)
-
-	//var Www = "0xa45a0ddd81da79f65cbcfeefc8e62382b1f56ccbbdd9533f77cdc49172cca33d"
-	//var Alice = "0xd43593c715fdd31c61141abd04a99fd6822c8558854ccde39a5684e7a56da27d"
-	//var Bob = "0x8eaf04151687736326c9fea17e25fc5287613693c912909cb226aa4794f26a48"
-	//var Charlie = "0x90b5ab205c6974c9ea841be688864633dc9ca8a357843eeacf2314649965fe22"
-	//var Dave = "0x306721211d5404bd9da88e0204360a1a9ab8b87c66c1bc2fcdd37f3c2222cc20"
-	//var Eve = "0xe659a7a1628cdd93febc04a4e0646ea20e9f5f0ce097d9a05290d4a9e054df4e"
-	//var Fred = "0x1cbd2d43530a44705ad088af313e18f80b53ef16b36177cd4b77b846f2a5f07c"
-	//
-	//var recipients = [7]string{Www, Alice, Bob, Charlie, Dave, Eve, Fred}
-	//for i := 0; i < 1; i++ {
-	//	dataReturn := utils.ConstructErc20DepositData([]byte(recipients[i]), big.NewInt(400000000000000000))
-	//	//dataaaaaa := "0x05e2ca170000000000000000000000000000000000000000000000000000000000000003000000000000000000000000000000000000000000000000000000000000000100000000000000000000000000000000000000000000000000000000000000600000000000000000000000000000000000000000000000000000000000000082000000000000000000000000000000000000000000000000000002ba7def30000000000000000000000000000000000000000000000000000000000000000042307831636264326434333533306134343730356164303838616633313365313866383062353365663136623336313737636434623737623834366632613566303763000000000000000000000000000000000000000000000000000000000000"
-	//	w.conn.Opts().Nonce = w.conn.Opts().Nonce.Add(w.conn.Opts().Nonce, big.NewInt(1))
-	//	w.conn.Opts().Value = big.NewInt(0)
-	//	DepositTx, err := w.bridgeContract.Deposit(
-	//		w.conn.Opts(),
-	//		uint8(m.Source),
-	//		m.ResourceId,
-	//		dataReturn,
-	//	)
-	//	fmt.Printf("datareturn is %v\n", common.BytesToHash(dataReturn))
-	//
-	//	log.Info("Deposit", "dataReturn", dataReturn, "DepositTx", DepositTx)
-	//	if err != nil {
-	//		log.Info("err is %v\n", err)
-	//	}
-	//}
 
 	return true
 }

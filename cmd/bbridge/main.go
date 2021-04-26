@@ -1,7 +1,5 @@
 /*
 Provides the command-line interface for the bsc application.
-
-For configuration and CLI commands see the README: https://github.com/rjman-self/Platdot.
 */
 package main
 
@@ -105,10 +103,10 @@ var (
 // init initializes CLI
 func init() {
 	app.Action = run
-	app.Copyright = "Copyright 2021 Platdot Authors"
-	app.Name = "Platdot"
-	app.Usage = "Platdot"
-	app.Authors = []*cli.Author{{Name: "Platdot 2021"}}
+	app.Copyright = "Copyright 2021 BBridge Authors"
+	app.Name = "BBridge"
+	app.Usage = "BBridge"
+	app.Authors = []*cli.Author{{Name: "BBridge 2021"}}
 	app.Version = Version
 	app.EnableBashCompletion = true
 	app.Commands = []*cli.Command{
@@ -146,7 +144,7 @@ func run(ctx *cli.Context) error {
 		return err
 	}
 
-	log.Info("Starting Platdot...")
+	log.Info("Starting BBridge...")
 
 	cfg, err := config.GetConfig(ctx)
 	if err != nil {

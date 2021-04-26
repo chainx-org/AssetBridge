@@ -18,7 +18,7 @@ require (
 	github.com/prometheus/client_golang v1.8.0
 	github.com/prometheus/common v0.15.0 // indirect
 	github.com/rjman-self/platdot-utils v1.0.9
-	github.com/rjman-self/substrate-go v1.5.2
+	github.com/rjman-self/substrate-go v1.5.4
 	github.com/rjmand/go-substrate-rpc-client/v2 v2.5.0
 	github.com/stretchr/testify v1.7.0
 	github.com/urfave/cli/v2 v2.3.0

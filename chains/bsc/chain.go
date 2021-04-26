@@ -26,7 +26,7 @@ import (
 	bridge "github.com/Rjman-self/BBridge/bindings/Bridge"
 	erc20Handler "github.com/Rjman-self/BBridge/bindings/ERC20Handler"
 	"github.com/Rjman-self/BBridge/config"
-	connection "github.com/Rjman-self/BBridge/connections/platdot"
+	connection "github.com/Rjman-self/BBridge/connections/bsc"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/ethclient"

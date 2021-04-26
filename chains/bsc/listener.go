@@ -20,7 +20,7 @@ import (
 	"github.com/Rjman-self/BBridge/bindings/ERC721Handler"
 	"github.com/Rjman-self/BBridge/bindings/GenericHandler"
 	"github.com/Rjman-self/BBridge/chains"
-	utils "github.com/Rjman-self/BBridge/shared/platdot"
+	utils "github.com/Rjman-self/BBridge/shared/bsc"
 	"github.com/rjman-self/platdot-utils/blockstore"
 	metrics "github.com/rjman-self/platdot-utils/metrics/types"
 	"github.com/rjman-self/platdot-utils/msg"

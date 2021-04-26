@@ -236,19 +236,19 @@ func (l *listener) processBlock(currentBlock int64) error {
 			fromCheck := l.checkFromAddress(e)
 			toCheck := l.checkToAddress(e)
 			if e.Type == base.AsMultiNew && fromCheck {
-				l.logout(FindNewMultiSigTx, currentBlock)
+				//l.logout(FindNewMultiSigTx, currentBlock)
 				/// Mark New a MultiSign Transfer
 				l.markNew(e)
 			}
 
 			if e.Type == base.AsMultiApprove && fromCheck {
-				l.logout(FindApproveMultiSigTx, currentBlock)
+				//l.logout(FindApproveMultiSigTx, currentBlock)
 				/// Mark Vote(Approve)
 				l.markVote(msTx, e)
 			}
 
 			if e.Type == base.AsMultiExecuted && fromCheck {
-				l.logout(FindExecutedMultiSigTx, currentBlock)
+				//l.logout(FindExecutedMultiSigTx, currentBlock)
 				// Find An existing multi-signed transaction in the record, and marks for executed status
 				l.markVote(msTx, e)
 				l.markExecution(msTx)
@@ -256,13 +256,12 @@ func (l *listener) processBlock(currentBlock int64) error {
 
 			if e.Type == base.UtilityBatch && toCheck {
 				l.logout(FindBatchMultiSigTx, currentBlock)
-
 				sendPubAddress, _ := ss58.DecodeToPub(e.FromAddress)
-				LostPubAddress, _ := ss58.DecodeToPub(l.lostAddress)
+				lostPubAddress, _ := ss58.DecodeToPub(l.lostAddress)
 
 				if l.lostAddress != "" {
 					/// RecoverLostAddress
-					if string(sendPubAddress) != string(LostPubAddress[:]) {
+					if string(sendPubAddress) != string(lostPubAddress[:]) {
 						continue
 					} else {
 						l.logout(FindLostMultiSigTx, currentBlock)

@@ -116,6 +116,9 @@ func (l *listener) logBlock(currentBlock uint64) {
 	if currentBlock % 5 == 0 {
 		message := l.name + " listening..."
 		l.log.Debug(message, "Block", currentBlock)
+		if currentBlock % 1000 == 0 {
+			l.log.Info(message, "Block", currentBlock)
+		}
 	}
 }
 
@@ -461,5 +464,8 @@ func (l *listener) logReadyToSend(amount *big.Int, recipient types.AccountID, e 
 		return
 	}
 	message := "Ready to send " + token + "..."
-	l.log.Info(message, "Amount", amount, "Recipient", recipient, "FromChain", l.name, "FromId", l.chainId, "To", l.destId)
+	l.log.Info(LineLog, "Amount", amount, "Recipient", recipient, "FromId", l.chainId, "To", l.destId)
+	l.log.Info(message, "Amount", amount, "Recipient", recipient, "FromId", l.chainId, "To", l.destId)
+	l.log.Info(LineLog, "Amount", amount, "Recipient", recipient, "FromId", l.chainId, "To", l.destId)
+
 }

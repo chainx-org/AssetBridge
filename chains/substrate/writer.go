@@ -82,7 +82,10 @@ func (w *writer) ResolveMessage(m msg.Message) bool {
 		w.log.Info("Not Mine", "msg.DestId", m.Destination, "w.l.chainId", w.listener.chainId)
 		return false
 	}
+
+	w.log.Info(LineLog,"DepositNonce", m.DepositNonce, "From", m.Source, "To", m.Destination)
 	w.log.Info(StartATx, "DepositNonce", m.DepositNonce, "From", m.Source, "To", m.Destination)
+	w.log.Info(LineLog,"DepositNonce", m.DepositNonce, "From", m.Source, "To", m.Destination)
 
 	/// Mark isProcessing
 	destMessage := Dest{
@@ -97,7 +100,9 @@ func (w *writer) ResolveMessage(m msg.Message) bool {
 		start := time.Now()
 		defer func() {
 			cost := time.Since(start)
+			w.log.Info(LineLog, "DepositNonce", m.DepositNonce)
 			w.log.Info(RelayerFinishTheTx,"Relayer", w.relayer.currentRelayer, "DepositNonce", m.DepositNonce, "CostTime", cost)
+			w.log.Info(LineLog, "DepositNonce", m.DepositNonce)
 		}()
 		retryTimes := RedeemRetryLimit
 		for {
@@ -199,9 +204,17 @@ func (w *writer) getCall(m msg.Message) (types.Call, *big.Int, bool, bool, Multi
 	var c types.Call
 	actualAmount := big.NewInt(0)
 	amount := big.NewInt(0).SetBytes(m.Payload[0].([]byte))
-	multiAddressRecipient := types.NewMultiAddressFromAccountID(m.Payload[1].([]byte))
-	addressRecipient := types.NewAddressFromAccountID(m.Payload[1].([]byte))
 
+	var multiAddressRecipient types.MultiAddress
+	var addressRecipient types.Address
+
+	if m.Source == config.BSC {
+		multiAddressRecipient = types.NewMultiAddressFromAccountID(m.Payload[1].([]byte))
+		addressRecipient = types.NewAddressFromAccountID(m.Payload[1].([]byte))
+	} else {
+		multiAddressRecipient, _ = types.NewMultiAddressFromHexAccountID(string(m.Payload[1].([]byte)))
+		addressRecipient, _ = types.NewAddressFromHexAccountID(string(m.Payload[1].([]byte)))
+	}
 	// Get parameters of Call
 	if m.Destination == config.Polkadot {
 		receiveAmount := big.NewInt(0).Div(amount, big.NewInt(oneDOT))
@@ -225,7 +238,10 @@ func (w *writer) getCall(m msg.Message) (types.Call, *big.Int, bool, bool, Multi
 			multiAddressRecipient,
 			sendAmount,
 		)
-		w.checkErr(NewBalancesTransferKeepAliveCallError, err)
+		if err != nil {
+			w.log.Error(NewBalancesTransferKeepAliveCallError, "Error", err)
+			return types.Call{}, nil, false, true, UnKnownError
+		}
 	} else if m.Destination == config.Kusama {
 		// Convert BKSM amount to KSM amount
 		receiveAmount := big.NewInt(0).Div(amount, big.NewInt(oneKSM))
@@ -251,7 +267,10 @@ func (w *writer) getCall(m msg.Message) (types.Call, *big.Int, bool, bool, Multi
 			multiAddressRecipient,
 			sendAmount,
 		)
-		w.checkErr(NewBalancesTransferKeepAliveCallError, err)
+		if err != nil {
+			w.log.Error(NewBalancesTransferKeepAliveCallError, "Error", err)
+			return types.Call{}, nil, false, true, UnKnownError
+		}
 	} else if m.Destination == config.ChainXBTC {
 		/// Convert BBTC amount to XBTC amount
 		actualAmount.Div(amount, big.NewInt(oneXBTC))
@@ -278,7 +297,10 @@ func (w *writer) getCall(m msg.Message) (types.Call, *big.Int, bool, bool, Multi
 			assetId,
 			sendAmount,
 		)
-		w.checkErr(NewXAssetsTransferCallError, err)
+		if err != nil {
+			w.log.Error(NewXAssetsTransferCallError, "Error", err)
+			return types.Call{}, nil, false, true, UnKnownError
+		}
 	} else if m.Destination == config.ChainXPCX {
 		/// Convert BPCX amount to PCX amount
 		actualAmount.Div(amount, big.NewInt(onePCX))
@@ -299,7 +321,10 @@ func (w *writer) getCall(m msg.Message) (types.Call, *big.Int, bool, bool, Multi
 			addressRecipient,
 			sendAmount,
 		)
-		w.checkErr(NewBalancesTransferCallError, err)
+		if err != nil {
+			w.log.Error(NewXAssetsTransferCallError, "Error", err)
+			return types.Call{}, nil, false, true, UnKnownError
+		}
 	} else {
 		/// Other Chain
 		w.log.Error("chainId set wrong", "ChainId", w.listener.chainId)
@@ -334,8 +359,15 @@ func (w *writer) redeemTx(m msg.Message) (bool, MultiSignTx) {
 			// Traverse all of matched Tx, included New、Approve、Executed
 			for _, ms := range w.listener.msTxAsMulti {
 				// Validate parameter
-				dest := types.NewAddressFromAccountID(m.Payload[1].([]byte)).AsAccountID
-				if ms.DestAddress == utils2.BytesToHex(dest[:]) && ms.DestAmount == actualAmount.String() {
+				var destAddress string
+				if m.Source == config.BSC {
+					dest := types.NewAddressFromAccountID(m.Payload[1].([]byte)).AsAccountID
+					destAddress = utils2.BytesToHex(dest[:])
+				} else {
+					destAddress = string(m.Payload[1].([]byte))[2:]
+				}
+
+				if ms.DestAddress == destAddress && ms.DestAmount == actualAmount.String() {
 					/// Once MultiSign Extrinsic is executed, stop sending Extrinsic to Polkadot
 					finished, executed := w.isFinish(ms, m)
 					if finished {
@@ -456,7 +488,7 @@ func (w *writer) submitTx(c types.Call) {
 			err = ext.MultiSign(w.relayer.kr, o)
 		}
 		if err != nil {
-			w.logErr(SignMultiSignTxError, err)
+			w.log.Error(SignMultiSignTxFailed, "Failed", err)
 			break
 		}
 

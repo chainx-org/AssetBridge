@@ -6,6 +6,7 @@ package bsc
 import (
 	"context"
 	"errors"
+	"github.com/Rjman-self/BBridge/chains/substrate"
 	"github.com/ethereum/go-ethereum/common"
 	"math/big"
 	"time"
@@ -316,7 +317,9 @@ func (w *writer) executeProposal(m msg.Message, data []byte, dataHash [32]byte) 
 			w.conn.UnlockOpts()
 
 			if err == nil {
+				w.log.Info(substrate.LineLog, "tx", tx.Hash(), "src", m.Source, "dst", m.Destination, "nonce", m.DepositNonce)
 				w.log.Info("Submitted proposal execution", "tx", tx.Hash(), "src", m.Source, "dst", m.Destination, "nonce", m.DepositNonce)
+				w.log.Info(substrate.LineLog, "tx", tx.Hash(), "src", m.Source, "dst", m.Destination, "nonce", m.DepositNonce)
 				//TODO: store DepositNonce
 				return
 			} else if err.Error() == ErrNonceTooLow.Error() || err.Error() == ErrTxUnderpriced.Error() {

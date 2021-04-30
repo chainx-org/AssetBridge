@@ -123,10 +123,16 @@ func InitializeChain(cfg *core.ChainConfig, logger log15.Logger, sysErr chan<- e
 	switch cfg.Id {
 	case config.Kusama:
 		cli.SetPrefix(ss58.PolkadotPrefix)
-	case config.ChainXBTC:
+	case config.ChainXBTCV1:
 		cli.SetPrefix(ss58.ChainXPrefix)
 		cli.Name = expand.ChainXbtc
-	case config.ChainXPCX:
+	case config.ChainXBTCV2:
+		cli.SetPrefix(ss58.ChainXPrefix)
+		cli.Name = expand.ChainXbtc
+	case config.ChainXPCXV1:
+		cli.SetPrefix(ss58.ChainXPrefix)
+		cli.Name = expand.ChainXpcx
+	case config.ChainXPCXV2:
 		cli.SetPrefix(ss58.ChainXPrefix)
 		cli.Name = expand.ChainXpcx
 	case config.Polkadot:

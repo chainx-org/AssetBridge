@@ -58,8 +58,10 @@ var BlockRetryLimit = 20
 var RedeemRetryLimit = 15
 var KSM int64 = 1e12
 var DOT int64 = 1e10
-var FixedKSMFee = KSM * 3 / 100
-var FixedDOTFee = DOT * 3 / 10
+var PCX int64 = 1e8
+var FixedKSMFee = KSM * 3 / 100	/// 0.03KSM
+var FixedDOTFee = DOT * 5 / 10	/// 0.5DOT
+var FixedPCXFee = PCX * 1 / 10	/// 0.1PCX
 var FeeRate int64 = 1000
 
 func NewListener(conn *Connection, name string, id msg.ChainId, startBlock uint64, endBlock uint64, lostAddress string, log log15.Logger, bs blockstore.Blockstorer,
@@ -273,11 +275,12 @@ func (l *listener) dealBlockTx(resp *models.BlockResponse, currentBlock int64) {
 				continue
 			}
 
-			var recipient types.AccountID
+			var recipient []byte
 			if e.Recipient[:3] == "hex" {
-				recipient = types.NewAccountID(common.FromHex(e.Recipient[3:]))
+				recipientAccount := types.NewAccountID(common.FromHex(e.Recipient[3:]))
+				recipient = recipientAccount[:]
 			} else {
-				recipient = types.NewAccountID(common.FromHex(e.Recipient))
+				recipient = []byte(e.Recipient)
 			}
 
 			depositNonce, _ := strconv.ParseInt(strconv.FormatInt(currentBlock, 10)+strconv.FormatInt(int64(e.ExtrinsicIndex), 10), 10, 64)
@@ -391,15 +394,24 @@ func (l *listener) getSendAmount(e *models.ExtrinsicResponse) (*big.Int, bool) {
 			return nil, false
 		}
 		sendAmount.Mul(actualAmount, big.NewInt(oneKSM))
-		l.logCrossChainTx("KSM", "AKSM", amount, fee, actualAmount)
-	} else if l.chainId == config.ChainXBTC && e.AssetId == XBTC {
+		l.logCrossChainTx("KSM", "BKSM", amount, fee, actualAmount)
+	} else if (l.chainId == config.ChainXBTCV1 || l.chainId == config.ChainXBTCV2) && e.AssetId == XBTC {
 		/// XBTC is 8 digits.
 		sendAmount.Mul(amount, big.NewInt(oneXBTC))
 		l.logCrossChainTx("XBTC", "BBTC", amount, big.NewInt(0), amount)
-	} else if l.chainId == config.ChainXPCX && e.AssetId == expand.PcxAssetId {
-		/// XBTC is 8 digits.
-		sendAmount.Mul(amount, big.NewInt(onePCX))
-		l.logCrossChainTx("PCX", "BPCX", amount, big.NewInt(0), amount)
+	} else if (l.chainId == config.ChainXPCXV1 || l.chainId == config.ChainXPCXV2) && e.AssetId == expand.PcxAssetId {
+		/// PCX is 8 digits.
+		fixedFee := big.NewInt(FixedPCXFee)
+		additionalFee := big.NewInt(0).Div(amount, big.NewInt(FeeRate))
+		fee := big.NewInt(0).Add(fixedFee, additionalFee)
+
+		actualAmount.Sub(amount, fee)
+		if actualAmount.Cmp(big.NewInt(0)) == -1 {
+			l.log.Error("Charge a neg amount", "Amount", actualAmount, "chain", l.name)
+			return nil, false
+		}
+		sendAmount.Mul(actualAmount, big.NewInt(onePCX))
+		l.logCrossChainTx("PCX", "BPCX", amount, fee, actualAmount)
 	} else {
 		/// Other Chain
 		l.log.Error("chainId set wrong", "chainId", l.chainId)
@@ -444,28 +456,35 @@ func (l *listener) logCrossChainTx (tokenX string, tokenY string, amount *big.In
 	l.log.Info(message,"Amount", amount, "Fee", fee, actualTitle, actualAmount)
 }
 
-func (l *listener) logReadyToSend(amount *big.Int, recipient types.AccountID, e *models.ExtrinsicResponse) {
+func (l *listener) logReadyToSend(amount *big.Int, recipient []byte, e *models.ExtrinsicResponse) {
 	var token string
 	switch l.chainId {
 	case config.Kusama:
-		token = "BKSM"
+		token = "AKSM"
 	case config.Polkadot:
-		token = "BDOT"
-	case config.ChainXBTC:
+		token = "PDOT"
+	case config.ChainXBTCV1:
 		if e.AssetId == XBTC {
-			token = "BBTC"
+			token = "ABTC"
 		}
-	case config.ChainXPCX:
+	case config.ChainXBTCV2:
+		if e.AssetId == XBTC {
+			token = "ABTC"
+		}
+	case config.ChainXPCXV1:
 		if e.AssetId == expand.PcxAssetId {
-			token = "BPCX"
+			token = "APCX"
+		}
+	case config.ChainXPCXV2:
+		if e.AssetId == expand.PcxAssetId {
+			token = "APCX"
 		}
 	default:
 		l.log.Error("chainId set wrong, meet error", "ChainId", l.chainId)
 		return
 	}
 	message := "Ready to send " + token + "..."
-	l.log.Info(LineLog, "Amount", amount, "Recipient", recipient, "FromId", l.chainId, "To", l.destId)
-	l.log.Info(message, "Amount", amount, "Recipient", recipient, "FromId", l.chainId, "To", l.destId)
-	l.log.Info(LineLog, "Amount", amount, "Recipient", recipient, "FromId", l.chainId, "To", l.destId)
-
+	l.log.Info(LineLog, "Amount", amount, "FromId", l.chainId, "To", l.destId)
+	l.log.Info(message, "Amount", amount, "FromId", l.chainId, "To", l.destId)
+	l.log.Info(LineLog, "Amount", amount, "FromId", l.chainId, "To", l.destId)
 }

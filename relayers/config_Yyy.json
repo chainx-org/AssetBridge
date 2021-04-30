@@ -34,7 +34,7 @@
       }
     },
     {
-      "name": "chainxbtc",
+      "name": "chainxbtcV1",
       "type": "substrate",
       "id": "3",
       "endpoint": "wss://chainx.supercube.pro/ws",
@@ -54,7 +54,7 @@
       }
     },
     {
-      "name": "chainxpcx",
+      "name": "chainxpcxV1",
       "type": "substrate",
       "id": "7",
       "endpoint": "wss://chainx.supercube.pro/ws",

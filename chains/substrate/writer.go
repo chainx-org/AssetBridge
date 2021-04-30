@@ -142,12 +142,11 @@ func (w *writer) ResolveMessage(m msg.Message) bool {
 					break
 				}
 
-				/// If currentTx is Vote
+				/// If currentTx is voted
 				if currentTx == YesVoted {
-					//fmt.Printf("I have Vote, wait executing\n")
 					time.Sleep(RoundInterval * time.Duration(w.relayer.totalRelayers) / 2)
 				}
-				/// if currentTx is Executed or UnKnownError
+				/// Executed or UnKnownError
 				if currentTx != YesVoted && currentTx != NotExecuted && currentTx != UnKnownError {
 					w.log.Info(MultiSigExtrinsicExecuted, "DepositNonce", m.DepositNonce, "OriginBlock", currentTx.BlockNumber)
 
@@ -271,7 +270,7 @@ func (w *writer) getCall(m msg.Message) (types.Call, *big.Int, bool, bool, Multi
 			w.log.Error(NewBalancesTransferKeepAliveCallError, "Error", err)
 			return types.Call{}, nil, false, true, UnKnownError
 		}
-	} else if m.Destination == config.ChainXBTC {
+	} else if m.Destination == config.ChainXBTCV1 {
 		/// Convert BBTC amount to XBTC amount
 		actualAmount.Div(amount, big.NewInt(oneXBTC))
 		if actualAmount.Cmp(big.NewInt(0)) == -1 {
@@ -301,13 +300,46 @@ func (w *writer) getCall(m msg.Message) (types.Call, *big.Int, bool, bool, Multi
 			w.log.Error(NewXAssetsTransferCallError, "Error", err)
 			return types.Call{}, nil, false, true, UnKnownError
 		}
-	} else if m.Destination == config.ChainXPCX {
-		/// Convert BPCX amount to PCX amount
-		actualAmount.Div(amount, big.NewInt(onePCX))
-
-		w.logCrossChainTx("BPCX", "PCX", actualAmount, big.NewInt(0), actualAmount)
+	} else if m.Destination == config.ChainXBTCV2 {
+		/// Convert BBTC amount to XBTC amount
+		actualAmount.Div(amount, big.NewInt(oneXBTC))
 		if actualAmount.Cmp(big.NewInt(0)) == -1 {
 			w.logErr(RedeemNegAmountError, nil)
+			return types.Call{}, nil, false, true, UnKnownError
+		}
+
+		w.logCrossChainTx("BBTC", "XBTC", actualAmount, big.NewInt(0), actualAmount)
+		sendAmount := types.NewUCompact(actualAmount)
+
+		// Create a XAssets.Transfer call
+		assetId := types.NewUCompactFromUInt(uint64(XBTC))
+		var err error
+
+		c, err = types.NewCall(
+			w.meta,
+			string(utils.XAssetsTransferMethod),
+			/// ChainX XBTC2.0 Address
+			//multiAddressRecipient,
+			/// ChainX XBTC1.0 Address
+			multiAddressRecipient,
+			assetId,
+			sendAmount,
+		)
+		if err != nil {
+			w.log.Error(NewXAssetsTransferCallError, "Error", err)
+			return types.Call{}, nil, false, true, UnKnownError
+		}
+	} else if m.Destination == config.ChainXPCXV1 {
+		/// Convert BPCX amount to PCX amount
+		receiveAmount := big.NewInt(0).Div(amount, big.NewInt(onePCX))
+		/// calculate fee and actualAmount
+		fixedFee := big.NewInt(FixedPCXFee)
+		additionalFee := big.NewInt(0).Div(receiveAmount, big.NewInt(FeeRate))
+		fee := big.NewInt(0).Add(fixedFee, additionalFee)
+		actualAmount.Sub(receiveAmount, fee)
+		w.logCrossChainTx("BPCX", "PCX", receiveAmount, fee, actualAmount)
+		if actualAmount.Cmp(big.NewInt(0)) == -1 {
+			w.log.Error(RedeemNegAmountError, "Amount", actualAmount)
 			return types.Call{}, nil, false, true, UnKnownError
 		}
 		sendAmount := types.NewUCompact(actualAmount)
@@ -322,7 +354,34 @@ func (w *writer) getCall(m msg.Message) (types.Call, *big.Int, bool, bool, Multi
 			sendAmount,
 		)
 		if err != nil {
-			w.log.Error(NewXAssetsTransferCallError, "Error", err)
+			w.log.Error(NewBalancesTransferKeepAliveCallError, "Error", err)
+			return types.Call{}, nil, false, true, UnKnownError
+		}
+	} else if m.Destination == config.ChainXPCXV2 {
+		/// Convert BPCX amount to PCX amount
+		receiveAmount := big.NewInt(0).Div(amount, big.NewInt(onePCX))
+		/// calculate fee and actualAmount
+		fixedFee := big.NewInt(FixedPCXFee)
+		additionalFee := big.NewInt(0).Div(receiveAmount, big.NewInt(FeeRate))
+		fee := big.NewInt(0).Add(fixedFee, additionalFee)
+		actualAmount.Sub(receiveAmount, fee)
+		w.logCrossChainTx("BPCX", "PCX", receiveAmount, fee, actualAmount)
+		if actualAmount.Cmp(big.NewInt(0)) == -1 {
+			w.log.Error(RedeemNegAmountError, "Amount", actualAmount)
+			return types.Call{}, nil, false, true, UnKnownError
+		}
+		sendAmount := types.NewUCompact(actualAmount)
+
+		// Create a XAssets.Transfer call
+		var err error
+		c, err = types.NewCall(
+			w.meta,
+			string(utils.BalancesTransferKeepAliveMethod),
+			multiAddressRecipient,
+			sendAmount,
+		)
+		if err != nil {
+			w.log.Error(NewBalancesTransferKeepAliveCallError, "Error", err)
 			return types.Call{}, nil, false, true, UnKnownError
 		}
 	} else {
@@ -350,8 +409,8 @@ func (w *writer) redeemTx(m msg.Message) (bool, MultiSignTx) {
 
 	for {
 		processRound := (w.relayer.currentRelayer + uint64(m.DepositNonce)) % w.relayer.totalRelayers
-		round := w.getRound()
-		if round.blockRound.Uint64() == processRound {
+		round := w.getRound().blockRound.Uint64()
+		if round == processRound {
 			// Try to find a exist MultiSignTx
 			var maybeTimePoint interface{}
 			maxWeight := types.Weight(0)
@@ -410,10 +469,34 @@ func (w *writer) redeemTx(m msg.Message) (bool, MultiSignTx) {
 			return false, NotExecuted
 			///END: Submit a MultiSignExtrinsic to Polkadot
 		} else {
-			///Round over, wait a RoundInterval
-			time.Sleep(RoundInterval)
+			finished, executed := w.checkRedeem(m, actualAmount)
+			if finished {
+				return finished, executed
+			} else {
+				///Round over, wait a RoundInterval
+				time.Sleep(RoundInterval)
+			}
 		}
 	}
+}
+
+func (w *writer) checkRedeem(m msg.Message, actualAmount *big.Int) (bool, MultiSignTx) {
+	for _, ms := range w.listener.msTxAsMulti {
+		// Validate parameter
+		var destAddress string
+		if m.Source == config.BSC {
+			dest := types.NewAddressFromAccountID(m.Payload[1].([]byte)).AsAccountID
+			destAddress = utils2.BytesToHex(dest[:])
+		} else {
+			destAddress = string(m.Payload[1].([]byte))[2:]
+		}
+
+		if ms.DestAddress == destAddress && ms.DestAmount == actualAmount.String() {
+			/// Once MultiSign Extrinsic is executed, stop sending Extrinsic to Polkadot
+			return w.isFinish(ms, m)
+		}
+	}
+	return false, NotExecuted
 }
 
 func (w *writer) submitTx(c types.Call) {
@@ -482,7 +565,8 @@ func (w *writer) submitTx(c types.Call) {
 		// Create and Sign the MultiSign
 		ext := types.NewExtrinsic(c)
 
-		if w.listener.chainId == config.ChainXBTC || w.listener.chainId == config.ChainXPCX {
+		/// ChainX V1 still use `Address` type
+		if w.listener.chainId == config.ChainXPCXV1 || w.listener.chainId == config.ChainXBTCV1 {
 			err = ext.Sign(w.relayer.kr, o)
 		} else {
 			err = ext.MultiSign(w.relayer.kr, o)
@@ -558,7 +642,8 @@ func (w *writer) UpdateMetadata() {
 }
 
 func (w *writer) getApi() (*gsrpc.SubstrateAPI, error) {
-	if w.listener.chainId == config.ChainXPCX || w.listener.chainId == config.ChainXBTC {
+	chainId := w.listener.chainId
+	if chainId == config.ChainXPCXV1 || chainId == config.ChainXPCXV2 || chainId == config.ChainXBTCV1 || chainId == config.ChainXBTCV2 {
 		api, err := gsrpc.NewSubstrateAPI(w.conn.url)
 		if err != nil {
 			w.logErr(NewApiError, err)

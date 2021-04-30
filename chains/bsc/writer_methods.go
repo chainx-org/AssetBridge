@@ -307,7 +307,7 @@ func (w *writer) executeProposal(m msg.Message, data []byte, dataHash [32]byte) 
 				return
 			}
 
-			tx, err := w.bridgeContract.ExecuteProposal(
+			_, err = w.bridgeContract.ExecuteProposal(
 				w.conn.Opts(),
 				uint8(m.Source),
 				uint64(m.DepositNonce),
@@ -317,9 +317,9 @@ func (w *writer) executeProposal(m msg.Message, data []byte, dataHash [32]byte) 
 			w.conn.UnlockOpts()
 
 			if err == nil {
-				w.log.Info(substrate.LineLog, "tx", tx.Hash(), "src", m.Source, "dst", m.Destination, "nonce", m.DepositNonce)
-				w.log.Info("Submitted proposal execution", "tx", tx.Hash(), "src", m.Source, "dst", m.Destination, "nonce", m.DepositNonce)
-				w.log.Info(substrate.LineLog, "tx", tx.Hash(), "src", m.Source, "dst", m.Destination, "nonce", m.DepositNonce)
+				w.log.Info(substrate.LineLog, "src", m.Source, "dst", m.Destination, "nonce", m.DepositNonce)
+				w.log.Info("Submitted proposal execution", "src", m.Source, "dst", m.Destination, "nonce", m.DepositNonce)
+				w.log.Info(substrate.LineLog, "src", m.Source, "dst", m.Destination, "nonce", m.DepositNonce)
 				//TODO: store DepositNonce
 				return
 			} else if err.Error() == ErrNonceTooLow.Error() || err.Error() == ErrTxUnderpriced.Error() {

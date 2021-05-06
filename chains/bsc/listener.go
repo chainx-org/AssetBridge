@@ -27,7 +27,7 @@ import (
 
 var BlockRetryInterval = time.Second * 5
 var BlockRetryLimit = 20
-var ErrFatalPolling = errors.New("listener block polling failed")
+//var ErrFatalPolling = errors.New("listener block polling failed")
 
 type listener struct {
 	cfg                    Config
@@ -76,13 +76,41 @@ func (l *listener) start() error {
 	l.log.Debug("Starting listener...")
 
 	go func() {
-		err := l.pollBlocks()
-		if err != nil {
-			l.log.Error("Polling blocks failed", "err", err)
-		}
+		l.connect()
 	}()
 
 	return nil
+}
+
+func (l *listener) connect() {
+	err := l.pollBlocks()
+	if err != nil {
+		l.log.Error("Polling blocks failed, retrying...", "err", err)
+		/// Poll block err, reconnecting...
+		l.reconnect()
+	}
+}
+
+func (l *listener) reconnect() {
+	ClientRetryLimit := BlockRetryLimit*BlockRetryLimit
+	for {
+		if ClientRetryLimit == 0 {
+			l.log.Error("Retry...", "chain", l.cfg.name)
+			ClientRetryLimit = BlockRetryLimit
+		}
+
+		_, err := l.conn.LatestBlock()
+		if err != nil {
+			time.Sleep(BlockRetryInterval)
+			continue
+		}
+
+		go func() {
+			l.connect()
+		}()
+
+		break
+	}
 }
 
 // pollBlocks will poll for the latest block and proceed to parse the associated events as it sees new blocks.
@@ -104,7 +132,6 @@ func (l *listener) pollBlocks() error {
 			// No more retries, goto next block
 			if retry == 0 {
 				l.log.Error("Polling failed, retries exceeded")
-				l.sysErr <- ErrFatalPolling
 				return nil
 			}
 

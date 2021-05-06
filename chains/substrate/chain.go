@@ -120,7 +120,28 @@ func InitializeChain(cfg *core.ChainConfig, logger log15.Logger, sysErr chan<- e
 		panic(err)
 	}
 
-	switch cfg.Id {
+	/// Initialize prefix
+	InitializePrefix(cfg.Id, cli)
+	log15.Info("Initialize ChainInfo", "Prefix", cli.Prefix, "Name", cli.Name, "Id", cfg.Id)
+
+	/// Set relayer parameters
+	relayer := NewRelayer((signature.KeyringPair)(*krp), otherRelayers, total, threshold, currentRelayer)
+
+	/// Setup listener & writer
+	l := NewListener(conn, cfg.Name, cfg.Id, startBlock, endBlock, lostAddress, logger, bs, stop, sysErr, m, types.AccountID(multiSignAddress), cli, resource, dest, relayer)
+	w := NewWriter(conn, l, logger, sysErr, m, ue, weight, relayer)
+
+	return &Chain{
+		cfg:      cfg,
+		conn:     conn,
+		listener: l,
+		writer:   w,
+		stop:     stop,
+	}, nil
+}
+
+func InitializePrefix(id msg.ChainId, cli *client.Client) {
+	switch id {
 	case config.Kusama:
 		cli.SetPrefix(ss58.PolkadotPrefix)
 	case config.ChainXBTCV1:
@@ -139,22 +160,8 @@ func InitializeChain(cfg *core.ChainConfig, logger log15.Logger, sysErr chan<- e
 		cli.SetPrefix(ss58.PolkadotPrefix)
 	default:
 		cli.SetPrefix(ss58.PolkadotPrefix)
+		cli.Name = "Why is there no name?"
 	}
-
-	/// Set relayer parameters
-	relayer := NewRelayer((signature.KeyringPair)(*krp), otherRelayers, total, threshold, currentRelayer)
-
-	/// Setup listener & writer
-	l := NewListener(conn, cfg.Name, cfg.Id, startBlock, endBlock, lostAddress, logger, bs, stop, sysErr, m, types.AccountID(multiSignAddress), cli, resource, dest, relayer)
-	w := NewWriter(conn, l, logger, sysErr, m, ue, weight, relayer)
-
-	return &Chain{
-		cfg:      cfg,
-		conn:     conn,
-		listener: l,
-		writer:   w,
-		stop:     stop,
-	}, nil
 }
 
 func (c *Chain) Start() error {

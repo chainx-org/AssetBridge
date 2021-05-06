@@ -27,8 +27,8 @@ const TxRetryLimit = 10
 
 var ErrNonceTooLow = errors.New("nonce too low")
 var ErrTxUnderpriced = errors.New("replacement transaction underpriced")
-var ErrFatalTx = errors.New("submission of transaction failed")
-var ErrFatalQuery = errors.New("query of chain state failed")
+//var ErrFatalTx = errors.New("submission of transaction failed")
+//var ErrFatalQuery = errors.New("query of chain state failed")
 
 // proposalIsComplete returns true if the proposal state is either Passed, Transferred or Cancelled
 func (w *writer) proposalIsComplete(srcId msg.ChainId, nonce msg.Nonce, dataHash [32]byte) bool {
@@ -207,7 +207,7 @@ func (w *writer) watchThenExecute(m msg.Message, data []byte, dataHash [32]byte,
 					// Exit if retries exceeded
 					if waitRetrys+1 == BlockRetryLimit {
 						w.log.Error("Waiting for block retries exceeded, shutting down")
-						w.sysErr <- ErrFatalQuery
+						//w.sysErr <- ErrFatalQuery
 						return
 					}
 				} else {
@@ -291,7 +291,7 @@ func (w *writer) voteProposal(m msg.Message, dataHash [32]byte) {
 		}
 	}
 	w.log.Error("Submission of Vote transaction failed", "source", m.Source, "dest", m.Destination, "depositNonce", m.DepositNonce)
-	w.sysErr <- ErrFatalTx
+	//w.sysErr <- ErrFatalTx
 }
 
 // executeProposal executes the proposal
@@ -339,5 +339,5 @@ func (w *writer) executeProposal(m msg.Message, data []byte, dataHash [32]byte) 
 		}
 	}
 	w.log.Error("Submission of Execute transaction failed", "source", m.Source, "dest", m.Destination, "depositNonce", m.DepositNonce)
-	w.sysErr <- ErrFatalTx
+	//w.sysErr <- ErrFatalTx
 }

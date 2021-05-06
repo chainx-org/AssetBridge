@@ -105,13 +105,54 @@ func (l *listener) start() error {
 	}
 
 	go func() {
-		err := l.pollBlocks()
-		if err != nil {
-			l.log.Error("Polling blocks failed", "err", err)
-		}
+		l.connect()
 	}()
 
 	return nil
+}
+
+func (l *listener) connect() {
+	err := l.pollBlocks()
+	if err != nil {
+		l.log.Error("Polling blocks failed, retrying...", "err", err)
+		/// Poll block err, reconnecting...
+		l.reconnect()
+	}
+}
+
+func (l *listener) reconnect() {
+	ClientRetryLimit := BlockRetryLimit*BlockRetryLimit
+	for {
+		if ClientRetryLimit == 0 {
+			l.log.Error("Retry...", "chain", l.name)
+			cli, err := client.New(l.conn.url)
+			if err == nil {
+				InitializePrefix(l.chainId, cli)
+				l.client = *cli
+			}
+			ClientRetryLimit = BlockRetryLimit
+		}
+		// Check whether latest is less than starting block
+		header, err := l.client.Api.RPC.Chain.GetHeaderLatest()
+		if err != nil {
+			time.Sleep(BlockRetryInterval)
+			ClientRetryLimit--
+			continue
+		}
+		l.startBlock = uint64(header.Number)
+
+		_, err = l.client.Api.RPC.Chain.GetFinalizedHead()
+		if err != nil {
+			time.Sleep(BlockRetryInterval)
+			continue
+		}
+
+		go func() {
+			l.connect()
+		}()
+
+		break
+	}
 }
 
 func (l *listener) logBlock(currentBlock uint64) {

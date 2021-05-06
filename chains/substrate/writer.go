@@ -5,6 +5,7 @@ package substrate
 
 import (
 	"errors"
+	"fmt"
 	"github.com/ChainSafe/log15"
 	"github.com/Rjman-self/BBridge/config"
 	utils "github.com/Rjman-self/BBridge/shared/substrate"
@@ -197,6 +198,96 @@ func (w *writer) checkRepeat(m msg.Message) bool {
 		}
 	}
 	return true
+}
+
+func (w *writer) redeemTx(m msg.Message) (bool, MultiSignTx) {
+	w.UpdateMetadata()
+	types.SetSerDeOptions(types.SerDeOptions{NoPalletIndices: true})
+
+	defer func() {
+		/// Single thread send one time each round
+		time.Sleep(RoundInterval)
+	}()
+
+	/// BEGIN: Create a call of MultiSignTransfer
+	c, actualAmount, ok, isFinish, currentTx := w.getCall(m)
+	if !ok {
+		return isFinish, currentTx
+	}
+
+	for {
+		processRound := (w.relayer.currentRelayer + uint64(m.DepositNonce)) % w.relayer.totalRelayers
+		round, height := w.getRound()
+		blockRound := round.blockRound.Uint64()
+		if blockRound == processRound {
+			fmt.Printf("Relayer#%v solve %v in block#%v\n", w.relayer.currentRelayer, round, height)
+			// Try to find a exist MultiSignTx
+			var maybeTimePoint interface{}
+			maxWeight := types.Weight(0)
+
+			// Traverse all of matched Tx, included New、Approve、Executed
+			for _, ms := range w.listener.msTxAsMulti {
+				// Validate parameter
+				var destAddress string
+				if m.Source == config.BSC {
+					dest := types.NewAddressFromAccountID(m.Payload[1].([]byte)).AsAccountID
+					destAddress = utils2.BytesToHex(dest[:])
+				} else {
+					destAddress = string(m.Payload[1].([]byte))[2:]
+				}
+
+				if ms.DestAddress == destAddress && ms.DestAmount == actualAmount.String() {
+					/// Once MultiSign Extrinsic is executed, stop sending Extrinsic to Polkadot
+					finished, executed := w.isFinish(ms, m)
+					if finished {
+						return finished, executed
+					}
+
+					/// Match the correct TimePoint
+					height := types.U32(ms.OriginMsTx.BlockNumber)
+					maybeTimePoint = TimePointSafe32{
+						Height: types.NewOptionU32(height),
+						Index:  types.U32(ms.OriginMsTx.MultiSignTxId),
+					}
+					maxWeight = types.Weight(w.maxWeight)
+					break
+				} else {
+					maybeTimePoint = []byte{}
+				}
+			}
+
+			if len(w.listener.msTxAsMulti) == 0 {
+				maybeTimePoint = []byte{}
+			}
+
+			if maxWeight == 0 {
+				w.log.Info(TryToMakeNewMultiSigTx, "depositNonce", m.DepositNonce)
+			} else {
+				_, height := maybeTimePoint.(TimePointSafe32).Height.Unwrap()
+				w.log.Info(TryToApproveMultiSigTx, "Block", height, "Index", maybeTimePoint.(TimePointSafe32).Index, "depositNonce", m.DepositNonce)
+			}
+
+			mc, err := types.NewCall(w.meta, string(utils.MultisigAsMulti), w.relayer.multiSignThreshold, w.relayer.otherSignatories, maybeTimePoint, EncodeCall(c), false, maxWeight)
+
+			if err != nil {
+				w.logErr(NewMultiCallError, err)
+			}
+			///END: Create a call of MultiSignTransfer
+
+			///BEGIN: Submit a MultiSignExtrinsic to Polkadot
+			w.submitTx(mc)
+			return false, NotExecuted
+			///END: Submit a MultiSignExtrinsic to Polkadot
+		} else {
+			finished, executed := w.checkRedeem(m, actualAmount)
+			if finished {
+				return finished, executed
+			} else {
+				///Round over, wait a RoundInterval
+				time.Sleep(RoundInterval)
+			}
+		}
+	}
 }
 
 func (w *writer) getCall(m msg.Message) (types.Call, *big.Int, bool, bool, MultiSignTx){
@@ -392,94 +483,6 @@ func (w *writer) getCall(m msg.Message) (types.Call, *big.Int, bool, bool, Multi
 	return c, actualAmount, true, false, NotExecuted
 }
 
-func (w *writer) redeemTx(m msg.Message) (bool, MultiSignTx) {
-	w.UpdateMetadata()
-	types.SetSerDeOptions(types.SerDeOptions{NoPalletIndices: true})
-
-	defer func() {
-		/// Single thread send one time each round
-		time.Sleep(RoundInterval)
-	}()
-
-	/// BEGIN: Create a call of MultiSignTransfer
-	c, actualAmount, ok, isFinish, currentTx := w.getCall(m)
-	if !ok {
-		return isFinish, currentTx
-	}
-
-	for {
-		processRound := (w.relayer.currentRelayer + uint64(m.DepositNonce)) % w.relayer.totalRelayers
-		round := w.getRound().blockRound.Uint64()
-		if round == processRound {
-			// Try to find a exist MultiSignTx
-			var maybeTimePoint interface{}
-			maxWeight := types.Weight(0)
-
-			// Traverse all of matched Tx, included New、Approve、Executed
-			for _, ms := range w.listener.msTxAsMulti {
-				// Validate parameter
-				var destAddress string
-				if m.Source == config.BSC {
-					dest := types.NewAddressFromAccountID(m.Payload[1].([]byte)).AsAccountID
-					destAddress = utils2.BytesToHex(dest[:])
-				} else {
-					destAddress = string(m.Payload[1].([]byte))[2:]
-				}
-
-				if ms.DestAddress == destAddress && ms.DestAmount == actualAmount.String() {
-					/// Once MultiSign Extrinsic is executed, stop sending Extrinsic to Polkadot
-					finished, executed := w.isFinish(ms, m)
-					if finished {
-						return finished, executed
-					}
-
-					/// Match the correct TimePoint
-					height := types.U32(ms.OriginMsTx.BlockNumber)
-					maybeTimePoint = TimePointSafe32{
-						Height: types.NewOptionU32(height),
-						Index:  types.U32(ms.OriginMsTx.MultiSignTxId),
-					}
-					maxWeight = types.Weight(w.maxWeight)
-					break
-				} else {
-					maybeTimePoint = []byte{}
-				}
-			}
-
-			if len(w.listener.msTxAsMulti) == 0 {
-				maybeTimePoint = []byte{}
-			}
-
-			if maxWeight == 0 {
-				w.log.Info(TryToMakeNewMultiSigTx, "depositNonce", m.DepositNonce)
-			} else {
-				_, height := maybeTimePoint.(TimePointSafe32).Height.Unwrap()
-				w.log.Info(TryToApproveMultiSigTx, "Block", height, "Index", maybeTimePoint.(TimePointSafe32).Index, "depositNonce", m.DepositNonce)
-			}
-
-			mc, err := types.NewCall(w.meta, string(utils.MultisigAsMulti), w.relayer.multiSignThreshold, w.relayer.otherSignatories, maybeTimePoint, EncodeCall(c), false, maxWeight)
-
-			if err != nil {
-				w.logErr(NewMultiCallError, err)
-			}
-			///END: Create a call of MultiSignTransfer
-
-			///BEGIN: Submit a MultiSignExtrinsic to Polkadot
-			w.submitTx(mc)
-			return false, NotExecuted
-			///END: Submit a MultiSignExtrinsic to Polkadot
-		} else {
-			finished, executed := w.checkRedeem(m, actualAmount)
-			if finished {
-				return finished, executed
-			} else {
-				///Round over, wait a RoundInterval
-				time.Sleep(RoundInterval)
-			}
-		}
-	}
-}
-
 func (w *writer) checkRedeem(m msg.Message, actualAmount *big.Int) (bool, MultiSignTx) {
 	for _, ms := range w.listener.msTxAsMulti {
 		// Validate parameter
@@ -583,7 +586,7 @@ func (w *writer) submitTx(c types.Call) {
 	}
 }
 
-func (w *writer) getRound() Round {
+func (w *writer) getRound() (Round, uint64) {
 	finalizedHash, err := w.listener.client.Api.RPC.Chain.GetFinalizedHead()
 	if err != nil {
 		w.listener.log.Error("Writer Failed to fetch finalized hash", "err", err)
@@ -604,7 +607,7 @@ func (w *writer) getRound() Round {
 		blockRound:  blockRound,
 	}
 
-	return round
+	return round, blockHeight.Uint64()
 }
 
 func (w *writer) isFinish(ms MultiSigAsMulti, m msg.Message) (bool, MultiSignTx) {

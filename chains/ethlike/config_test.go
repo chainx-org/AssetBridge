@@ -1,7 +1,7 @@
 // Copyright 2020 ChainSafe Systems
 // SPDX-License-Identifier: LGPL-3.0-only
 
-package bsc
+package ethlike
 
 import (
 	"math/big"
@@ -9,7 +9,7 @@ import (
 	"testing"
 
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/rjman-self/platdot-utils/core"
+	"github.com/rjman-self/sherpax-utils/core"
 )
 
 //TestParseChainConfig tests parseChainConfig with all handlerContracts provided

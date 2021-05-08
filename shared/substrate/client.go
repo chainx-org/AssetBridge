@@ -8,10 +8,10 @@ import (
 	"math/big"
 
 	"github.com/ChainSafe/log15"
-	gsrpc "github.com/centrifuge/go-substrate-rpc-client/v2"
-	"github.com/centrifuge/go-substrate-rpc-client/v2/signature"
-	"github.com/centrifuge/go-substrate-rpc-client/v2/types"
-	"github.com/rjman-self/platdot-utils/msg"
+	gsrpc "github.com/centrifuge/go-substrate-rpc-client/v3"
+	"github.com/centrifuge/go-substrate-rpc-client/v3/signature"
+	"github.com/centrifuge/go-substrate-rpc-client/v3/types"
+	"github.com/rjman-self/sherpax-utils/msg"
 )
 
 // Client is a container for all the components required to submit extrinsics

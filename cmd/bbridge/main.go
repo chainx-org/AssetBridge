@@ -1,29 +1,25 @@
 /*
-Provides the command-line interface for the bsc application.
+Provides the command-line interface for the ethlike application.
 */
 package main
 
 import (
 	"errors"
 	"fmt"
-	"github.com/Rjman-self/BBridge/chains/bsc"
-	gsrpc "github.com/centrifuge/go-substrate-rpc-client/v2"
-	"github.com/centrifuge/go-substrate-rpc-client/v2/signature"
-	"github.com/centrifuge/go-substrate-rpc-client/v2/types"
-	"net/http"
-	"os"
-
-	"strconv"
-
 	log "github.com/ChainSafe/log15"
+	"github.com/Rjman-self/BBridge/chains/ethlike"
 	"github.com/Rjman-self/BBridge/chains/substrate"
 	"github.com/Rjman-self/BBridge/config"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
-	"github.com/rjman-self/platdot-utils/core"
-	"github.com/rjman-self/platdot-utils/metrics/health"
-	metrics "github.com/rjman-self/platdot-utils/metrics/types"
-	"github.com/rjman-self/platdot-utils/msg"
+	"github.com/rjman-self/sherpax-utils/core"
+	"github.com/rjman-self/sherpax-utils/metrics/health"
+	metrics "github.com/rjman-self/sherpax-utils/metrics/types"
+	"github.com/rjman-self/sherpax-utils/msg"
+	"github.com/status-im/keycard-go/hexutils"
 	"github.com/urfave/cli/v2"
+	"net/http"
+	"os"
+	"strconv"
 )
 
 var app = cli.NewApp()
@@ -63,11 +59,11 @@ var accountCommand = cli.Command{
 	Name:  "accounts",
 	Usage: "manage bridge keystore",
 	Description: "The accounts command is used to manage the bridge keystore.\n" +
-		"\tTo generate a new account (key type generated is determined on the flag passed in): bsc accounts generate\n" +
-		"\tTo import a keystore file: bsc accounts import path/to/file\n" +
-		"\tTo import a geth keystore file: bsc accounts import --ethereum path/to/file\n" +
-		"\tTo import a private key file: bsc accounts import --privateKey private_key\n" +
-		"\tTo list keys: bsc accounts list",
+		"\tTo generate a new account (key type generated is determined on the flag passed in): ethlike accounts generate\n" +
+		"\tTo import a keystore file: ethlike accounts import path/to/file\n" +
+		"\tTo import a geth keystore file: ethlike accounts import --ethereum path/to/file\n" +
+		"\tTo import a private key file: ethlike accounts import --privateKey private_key\n" +
+		"\tTo list keys: ethlike accounts list",
 	Subcommands: []*cli.Command{
 		{
 			Action: wrapHandler(handleGenerateCmd),
@@ -117,6 +113,11 @@ func init() {
 }
 
 func main() {
+	hexBytes := hexutils.HexToBytes("42616C616E6365732E7472616E73666572")
+	strBytes := []byte("Balances.transfer")
+	strHex := hexutils.BytesToHex(strBytes)
+	fmt.Printf("hexBytes = %v, strBytes = %v, strHex = %v\n", hexBytes, strBytes, strHex)
+
 	if err := app.Run(os.Args); err != nil {
 		log.Error(err.Error())
 		os.Exit(1)
@@ -192,7 +193,7 @@ func run(ctx *cli.Context) error {
 		}
 
 		if chain.Type == "ethereum" {
-			newChain, err = bsc.InitializeChain(chainConfig, logger, sysErr, m)
+			newChain, err = ethlike.InitializeChain(chainConfig, logger, sysErr, m)
 		} else if chain.Type == "substrate" {
 			newChain, err = substrate.InitializeChain(chainConfig, logger, sysErr, m)
 		} else {
@@ -232,103 +233,4 @@ func run(ctx *cli.Context) error {
 	c.Start()
 
 	return nil
-}
-
-func sendSimpleTx() bool {
-	nnnPk := types.MustHexDecodeString("0x6c707b1690a6b0e01b5dea252fe1887930a5afc0ec203f96705331749c37ae4a")
-
-	api, err := gsrpc.NewSubstrateAPI("wss://chainx.supercube.pro/ws")
-	if err != nil {
-		panic(err)
-	}
-
-	meta, err := api.RPC.State.GetMetadataLatest()
-	if err != nil {
-		panic(err)
-	}
-
-
-	//serialize signature data
-	//types.SetSerDeOptions(types.SerDeOptions{NoPalletIndices: true})
-
-	//BEGIN: Create a call of transfer
-	method := "Balances.transfer"
-	recipient, _ := types.NewAddressFromHexAccountID("0x923eeef27b93315c97e63e0c1284b7433ffbc413a58da0626a63955a48586075")
-	amount := types.NewUCompactFromUInt(100000000)
-
-	//assetId := types.NewUCompactFromUInt(1)
-
-	c, err := types.NewCall(
-		meta,
-		method,
-		recipient,
-		amount,
-	)
-	if err != nil {
-		panic(err)
-	}
-
-	ext := types.NewExtrinsic(c)
-
-	genesisHash, err := api.RPC.Chain.GetBlockHash(0)
-	if err != nil {
-		panic(err)
-	}
-	rv, err := api.RPC.State.GetRuntimeVersionLatest()
-	if err != nil {
-		panic(err)
-	}
-
-	key, err := types.CreateStorageKey(meta, "System", "Account", nnnPk, nil)
-	if err != nil {
-		panic(err)
-	}
-
-	var accountInfo types.AccountInfo
-	ok, err := api.RPC.State.GetStorageLatest(key, &accountInfo)
-	if err != nil || !ok {
-		panic(err)
-	}
-
-	nonce := uint32(accountInfo.Nonce)
-
-	o := types.SignatureOptions{
-		BlockHash:          genesisHash,
-		Era:                types.ExtrinsicEra{IsMortalEra: false},
-		GenesisHash:        genesisHash,
-		Nonce:              types.NewUCompactFromUInt(uint64(nonce)),
-		SpecVersion:        rv.SpecVersion,
-		Tip:                types.NewUCompactFromUInt(0),
-		TransactionVersion: rv.TransactionVersion,
-	}
-
-	var seed = "0x88f0a28290e044930f03e51e3baa9f24293af62a30e537a5a04e1419f605dcc8"
-	var addr = "5EWtScne4zWsGaP4gVo8DmLpChVx3MzoQTpKJCEdBTYDA1Dy"
-	//var phrase = "outer spike flash urge bus text aim public drink pumpkin pretty loan"
-
-	nnn := signature.KeyringPair{
-		URI:       seed,
-		Address:   addr,
-		PublicKey: nnnPk,
-	}
-
-	err = ext.Sign(nnn, o)
-	if err != nil {
-		panic(err)
-	}
-
-	sub, err := api.RPC.Author.SubmitAndWatchExtrinsic(ext)
-	if err != nil {
-		panic(err)
-	}
-	defer sub.Unsubscribe()
-
-	for {
-		status := <-sub.Chan()
-		//fmt.Printf("Transaction status: %#v\n", status)
-		if status.IsFinalized {
-			//w.conn.api.
-			fmt.Printf("Completed at block hash: %#x\n", status.AsFinalized)
-		}
-	}
 }

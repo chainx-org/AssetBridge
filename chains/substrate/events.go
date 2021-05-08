@@ -9,7 +9,7 @@ import (
 
 	events "github.com/ChainSafe/chainbridge-substrate-events"
 	"github.com/ChainSafe/log15"
-	"github.com/rjman-self/platdot-utils/msg"
+	"github.com/rjman-self/sherpax-utils/msg"
 )
 
 type eventName string

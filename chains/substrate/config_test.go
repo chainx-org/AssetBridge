@@ -6,7 +6,7 @@ package substrate
 import (
 	"testing"
 
-	"github.com/rjman-self/platdot-utils/core"
+	"github.com/rjman-self/sherpax-utils/core"
 )
 
 func TestParseStartBlock(t *testing.T) {

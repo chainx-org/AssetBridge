@@ -4,16 +4,17 @@
 package substrate
 
 import (
+	"bytes"
 	"errors"
 	"fmt"
 	"github.com/ChainSafe/log15"
 	"github.com/Rjman-self/BBridge/config"
 	utils "github.com/Rjman-self/BBridge/shared/substrate"
-	gsrpc "github.com/centrifuge/go-substrate-rpc-client/v2"
-	"github.com/centrifuge/go-substrate-rpc-client/v2/types"
-	"github.com/rjman-self/platdot-utils/core"
-	metrics "github.com/rjman-self/platdot-utils/metrics/types"
-	"github.com/rjman-self/platdot-utils/msg"
+	gsrpc "github.com/centrifuge/go-substrate-rpc-client/v3"
+	"github.com/centrifuge/go-substrate-rpc-client/v3/types"
+	"github.com/rjman-self/sherpax-utils/core"
+	metrics "github.com/rjman-self/sherpax-utils/metrics/types"
+	"github.com/rjman-self/sherpax-utils/msg"
 	utils2 "github.com/rjman-self/substrate-go/utils"
 	"math/big"
 	"sync"
@@ -21,8 +22,9 @@ import (
 )
 
 var _ core.Writer = &writer{}
-
+var AcknowledgeProposal utils.Method = utils.BridgePalletName + ".acknowledge_proposal"
 var TerminatedError = errors.New("terminated")
+
 const genesisBlock = 0
 const RoundInterval = time.Second * 6
 const xParameter uint8 = 255
@@ -75,105 +77,115 @@ func NewWriter(conn *Connection, listener *listener, log log15.Logger, sysErr ch
 		messages:   make(map[Dest]bool, InitCapacity),
 	}
 }
-
 func (w *writer) ResolveMessage(m msg.Message) bool {
-	w.checkRepeat(m)
+	var prop *proposal
+	var err error
 
-	if m.Destination != w.listener.chainId {
-		w.log.Info("Not Mine", "msg.DestId", m.Destination, "w.l.chainId", w.listener.chainId)
+	// Construct the Transaction
+	switch m.Type {
+	case msg.NativeTransfer:
+		w.createNativeTx(m)
+		return true
+	case msg.FungibleTransfer:
+		prop, err = w.createFungibleProposal(m)
+	case msg.NonFungibleTransfer:
+		prop, err = w.createNonFungibleProposal(m)
+	case msg.GenericTransfer:
+		prop, err = w.createGenericProposal(m)
+	default:
+		w.log.Info("unrecognized message type received", "Chain", w.conn.name, "Dest", m.Destination)
+		return false
+	}
+	if err != nil {
+		w.logErr("failed to construct proposal", err)
 		return false
 	}
 
-	w.log.Info(LineLog,"DepositNonce", m.DepositNonce, "From", m.Source, "To", m.Destination)
-	w.log.Info(StartATx, "DepositNonce", m.DepositNonce, "From", m.Source, "To", m.Destination)
-	w.log.Info(LineLog,"DepositNonce", m.DepositNonce, "From", m.Source, "To", m.Destination)
-
-	/// Mark isProcessing
-	destMessage := Dest{
-		DepositNonce: m.DepositNonce,
-		DestAddress:  string(m.Payload[1].([]byte)),
-		DestAmount:   string(m.Payload[0].([]byte)),
-	}
-	w.messages[destMessage] = true
-
-	go func()  {
-		// calculate spend time
-		start := time.Now()
-		defer func() {
-			cost := time.Since(start)
-			w.log.Info(LineLog, "DepositNonce", m.DepositNonce)
-			w.log.Info(RelayerFinishTheTx,"Relayer", w.relayer.currentRelayer, "DepositNonce", m.DepositNonce, "CostTime", cost)
-			w.log.Info(LineLog, "DepositNonce", m.DepositNonce)
-		}()
-		retryTimes := RedeemRetryLimit
-		for {
-			retryTimes--
-			// No more retries, stop RedeemTx
-			if retryTimes < RedeemRetryLimit / 2 {
-				w.log.Warn(MaybeAProblem, "RetryTimes", retryTimes)
-			}
-			if retryTimes == 0 {
-				w.logErr(RedeemTxTryTooManyTimes, nil)
-				break
-			}
-			isFinished, currentTx := w.redeemTx(m)
-			if isFinished {
-				var mutex sync.Mutex
-				mutex.Lock()
-
-				/// If currentTx is UnKnownError
-				if currentTx == UnKnownError {
-					w.log.Error(MultiSigExtrinsicError, "DepositNonce", m.DepositNonce)
-
-					var mutex sync.Mutex
-					mutex.Lock()
-
-					/// Delete Listener msTx
-					delete(w.listener.msTxAsMulti, currentTx)
-
-					/// Delete Message
-					dm := Dest{
-						DepositNonce: m.DepositNonce,
-						DestAddress:  string(m.Payload[1].([]byte)),
-						DestAmount:   string(m.Payload[0].([]byte)),
-					}
-					delete(w.messages, dm)
-
-					mutex.Unlock()
-					break
-				}
-
-				/// If currentTx is voted
-				if currentTx == YesVoted {
-					time.Sleep(RoundInterval * time.Duration(w.relayer.totalRelayers) / 2)
-				}
-				/// Executed or UnKnownError
-				if currentTx != YesVoted && currentTx != NotExecuted && currentTx != UnKnownError {
-					w.log.Info(MultiSigExtrinsicExecuted, "DepositNonce", m.DepositNonce, "OriginBlock", currentTx.BlockNumber)
-
-					var mutex sync.Mutex
-					mutex.Lock()
-
-					/// Delete Listener msTx
-					delete(w.listener.msTxAsMulti, currentTx)
-
-					/// Delete Message
-					dm := Dest{
-						DepositNonce: m.DepositNonce,
-						DestAddress:  string(m.Payload[1].([]byte)),
-						DestAmount:   string(m.Payload[0].([]byte)),
-					}
-					delete(w.messages, dm)
-
-					mutex.Unlock()
-					break
-				}
-			}
+	for i := 0; i < BlockRetryLimit; i++ {
+		// Ensure we only submit a vote if the proposal hasn't completed
+		valid, reason, err := w.proposalValid(prop)
+		if err != nil {
+			w.log.Error("Failed to assert proposal state", "err", err)
+			time.Sleep(BlockRetryInterval)
+			continue
 		}
-		w.log.Info(FinishARedeemTx, "DepositNonce", m.DepositNonce)
-	}()
+
+		// If active submit call, otherwise skip it. Retry on failure.
+		if valid {
+			w.log.Info("Acknowledging proposal on chain", "nonce", prop.depositNonce, "source", prop.sourceId, "resource", fmt.Sprintf("%x", prop.resourceId), "method", prop.method)
+
+			err = w.conn.SubmitTx(AcknowledgeProposal, prop.depositNonce, prop.sourceId, prop.resourceId, prop.call)
+			if err != nil && err.Error() == TerminatedError.Error() {
+				return false
+			} else if err != nil {
+				w.log.Error("Failed to execute extrinsic", "err", err)
+				time.Sleep(BlockRetryInterval)
+				continue
+			}
+			if w.metrics != nil {
+				w.metrics.VotesSubmitted.Inc()
+			}
+			return true
+		} else {
+			w.log.Info("Ignoring proposal", "reason", reason, "nonce", prop.depositNonce, "source", prop.sourceId, "resource", prop.resourceId)
+			return true
+		}
+	}
 	return true
 }
+
+func (w *writer) resolveResourceId(id [32]byte) (string, error) {
+	var res []byte
+	exists, err := w.conn.queryStorage(utils.BridgeStoragePrefix, "Resources", id[:], nil, &res)
+	if err != nil {
+		return "", err
+	}
+	if !exists {
+		return "", fmt.Errorf("resource %x not found on chain", id)
+	}
+	return string(res), nil
+}
+
+// proposalValid asserts the state of a proposal. If the proposal is active and this relayer
+// has not voted, it will return true. Otherwise, it will return false with a reason string.
+func (w *writer) proposalValid(prop *proposal) (bool, string, error) {
+	var voteRes voteState
+	srcId, err := types.EncodeToBytes(prop.sourceId)
+	if err != nil {
+		return false, "", err
+	}
+	propBz, err := prop.encode()
+	if err != nil {
+		return false, "", err
+	}
+	exists, err := w.conn.queryStorage(utils.BridgeStoragePrefix, "Votes", srcId, propBz, &voteRes)
+	if err != nil {
+		return false, "", err
+	}
+
+	if !exists {
+		return true, "", nil
+	} else if voteRes.Status.IsActive {
+		if containsVote(voteRes.VotesFor, types.NewAccountID(w.conn.key.PublicKey)) ||
+			containsVote(voteRes.VotesAgainst, types.NewAccountID(w.conn.key.PublicKey)) {
+			return false, "already voted", nil
+		} else {
+			return true, "", nil
+		}
+	} else {
+		return false, "proposal complete", nil
+	}
+}
+
+func containsVote(votes []types.AccountID, voter types.AccountID) bool {
+	for _, v := range votes {
+		if bytes.Equal(v[:], voter[:]) {
+			return true
+		}
+	}
+	return false
+}
+
 
 func (w *writer) checkRepeat(m msg.Message) bool {
 	for {
@@ -229,7 +241,7 @@ func (w *writer) redeemTx(m msg.Message) (bool, MultiSignTx) {
 			for _, ms := range w.listener.msTxAsMulti {
 				// Validate parameter
 				var destAddress string
-				if m.Source == config.BSC {
+				if m.Source == config.IdBSC {
 					dest := types.NewAddressFromAccountID(m.Payload[1].([]byte)).AsAccountID
 					destAddress = utils2.BytesToHex(dest[:])
 				} else {
@@ -298,7 +310,7 @@ func (w *writer) getCall(m msg.Message) (types.Call, *big.Int, bool, bool, Multi
 	var multiAddressRecipient types.MultiAddress
 	var addressRecipient types.Address
 
-	if m.Source == config.BSC {
+	if m.Source == config.IdBSC {
 		multiAddressRecipient = types.NewMultiAddressFromAccountID(m.Payload[1].([]byte))
 		addressRecipient = types.NewAddressFromAccountID(m.Payload[1].([]byte))
 	} else {
@@ -306,7 +318,7 @@ func (w *writer) getCall(m msg.Message) (types.Call, *big.Int, bool, bool, Multi
 		addressRecipient, _ = types.NewAddressFromHexAccountID(string(m.Payload[1].([]byte)))
 	}
 	// Get parameters of Call
-	if m.Destination == config.Polkadot {
+	if m.Destination == config.IdPolkadot {
 		receiveAmount := big.NewInt(0).Div(amount, big.NewInt(oneDOT))
 		/// calculate fee and actualAmount
 		fixedFee := big.NewInt(FixedDOTFee)
@@ -332,7 +344,7 @@ func (w *writer) getCall(m msg.Message) (types.Call, *big.Int, bool, bool, Multi
 			w.log.Error(NewBalancesTransferKeepAliveCallError, "Error", err)
 			return types.Call{}, nil, false, true, UnKnownError
 		}
-	} else if m.Destination == config.Kusama {
+	} else if m.Destination == config.IdKusama {
 		// Convert BKSM amount to KSM amount
 		receiveAmount := big.NewInt(0).Div(amount, big.NewInt(oneKSM))
 
@@ -361,7 +373,7 @@ func (w *writer) getCall(m msg.Message) (types.Call, *big.Int, bool, bool, Multi
 			w.log.Error(NewBalancesTransferKeepAliveCallError, "Error", err)
 			return types.Call{}, nil, false, true, UnKnownError
 		}
-	} else if m.Destination == config.ChainXBTCV1 {
+	} else if m.Destination == config.IdChainXBTCV1 {
 		/// Convert BBTC amount to XBTC amount
 		actualAmount.Div(amount, big.NewInt(oneXBTC))
 		if actualAmount.Cmp(big.NewInt(0)) == -1 {
@@ -391,7 +403,7 @@ func (w *writer) getCall(m msg.Message) (types.Call, *big.Int, bool, bool, Multi
 			w.log.Error(NewXAssetsTransferCallError, "Error", err)
 			return types.Call{}, nil, false, true, UnKnownError
 		}
-	} else if m.Destination == config.ChainXBTCV2 {
+	} else if m.Destination == config.IdChainXBTCV2 {
 		/// Convert BBTC amount to XBTC amount
 		actualAmount.Div(amount, big.NewInt(oneXBTC))
 		if actualAmount.Cmp(big.NewInt(0)) == -1 {
@@ -420,7 +432,7 @@ func (w *writer) getCall(m msg.Message) (types.Call, *big.Int, bool, bool, Multi
 			w.log.Error(NewXAssetsTransferCallError, "Error", err)
 			return types.Call{}, nil, false, true, UnKnownError
 		}
-	} else if m.Destination == config.ChainXPCXV1 {
+	} else if m.Destination == config.IdChainXPCXV1 {
 		/// Convert BPCX amount to PCX amount
 		receiveAmount := big.NewInt(0).Div(amount, big.NewInt(onePCX))
 		/// calculate fee and actualAmount
@@ -448,7 +460,7 @@ func (w *writer) getCall(m msg.Message) (types.Call, *big.Int, bool, bool, Multi
 			w.log.Error(NewBalancesTransferKeepAliveCallError, "Error", err)
 			return types.Call{}, nil, false, true, UnKnownError
 		}
-	} else if m.Destination == config.ChainXPCXV2 {
+	} else if m.Destination == config.IdChainXPCXV2 {
 		/// Convert BPCX amount to PCX amount
 		receiveAmount := big.NewInt(0).Div(amount, big.NewInt(onePCX))
 		/// calculate fee and actualAmount
@@ -487,7 +499,7 @@ func (w *writer) checkRedeem(m msg.Message, actualAmount *big.Int) (bool, MultiS
 	for _, ms := range w.listener.msTxAsMulti {
 		// Validate parameter
 		var destAddress string
-		if m.Source == config.BSC {
+		if m.Source == config.IdBSC {
 			dest := types.NewAddressFromAccountID(m.Payload[1].([]byte)).AsAccountID
 			destAddress = utils2.BytesToHex(dest[:])
 		} else {
@@ -569,7 +581,7 @@ func (w *writer) submitTx(c types.Call) {
 		ext := types.NewExtrinsic(c)
 
 		/// ChainX V1 still use `Address` type
-		if w.listener.chainId == config.ChainXPCXV1 || w.listener.chainId == config.ChainXBTCV1 {
+		if w.listener.chainId == config.IdChainXPCXV1 || w.listener.chainId == config.IdChainXBTCV1 {
 			err = ext.Sign(w.relayer.kr, o)
 		} else {
 			err = ext.MultiSign(w.relayer.kr, o)
@@ -646,7 +658,7 @@ func (w *writer) UpdateMetadata() {
 
 func (w *writer) getApi() (*gsrpc.SubstrateAPI, error) {
 	chainId := w.listener.chainId
-	if chainId == config.ChainXPCXV1 || chainId == config.ChainXPCXV2 || chainId == config.ChainXBTCV1 || chainId == config.ChainXBTCV2 {
+	if chainId == config.IdChainXPCXV1 || chainId == config.IdChainXPCXV2 || chainId == config.IdChainXBTCV1 || chainId == config.IdChainXBTCV2 {
 		api, err := gsrpc.NewSubstrateAPI(w.conn.url)
 		if err != nil {
 			w.logErr(NewApiError, err)

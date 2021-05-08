@@ -6,7 +6,7 @@ package utils
 import (
 	"github.com/Rjman-self/BBridge/bindings/GenericHandler"
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/rjman-self/platdot-utils/msg"
+	"github.com/rjman-self/sherpax-utils/msg"
 )
 
 var StoreFunctionSig = CreateFunctionSignature("store(bytes32)")

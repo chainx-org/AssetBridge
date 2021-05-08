@@ -128,8 +128,8 @@ github.com/cenkalti/backoff v2.2.1+incompatible/go.mod h1:90ReRw6GdpyfrHakVjL/QH
 github.com/census-instrumentation/opencensus-proto v0.2.1/go.mod h1:f6KPmirojxKA12rnyqOA5BBL4O983OfeGPqjHWSTneU=
 github.com/centrifuge/go-substrate-rpc-client v2.0.0-alpha.3+incompatible h1:d8hQYVrpemZ6ZN38kL1XdQtezXTwrgiVXgQg+M3Lay0=
 github.com/centrifuge/go-substrate-rpc-client v2.0.0-alpha.3+incompatible/go.mod h1:GBMLH8MQs5g4FcrytcMm9uRgBnTL1LIkNTue6lUPhZU=
-github.com/centrifuge/go-substrate-rpc-client v2.0.0+incompatible h1:FvPewruOgelqA/DVBdX7/Q6znUGGQ+g0ciG5tA2Fk98=
-github.com/centrifuge/go-substrate-rpc-client v2.0.0+incompatible/go.mod h1:GBMLH8MQs5g4FcrytcMm9uRgBnTL1LIkNTue6lUPhZU=
+github.com/centrifuge/go-substrate-rpc-client/v2 v2.1.0/go.mod h1:FvTQxAPFHIgGYsmNciyw8cddwV+KzmIUJNti0VR9+P4=
+github.com/centrifuge/go-substrate-rpc-client/v3 v3.0.0 h1:nwmK0bGIN67YBkqW/nAhgyhkCOv1nrFS3otY0qoQFeE=
 github.com/centrifuge/go-substrate-rpc-client/v3 v3.0.0/go.mod h1:AwGxOMdXSKLXN+Ks7/nwyfNcOgnXufaP7TV8QZmEyS4=
 github.com/cespare/cp v0.1.0 h1:SE+dxFebS7Iik5LK0tsi1k9ZCxEaFX4AjQmoyA+1dJk=
 github.com/cespare/cp v0.1.0/go.mod h1:SOGHArjBr4JWaSDEVpWpo/hNg6RoKrls6Oh40hiwW+s=
@@ -622,10 +622,8 @@ github.com/regen-network/protobuf v1.3.3-alpha.regen.1/go.mod h1:2DjTFR1HhMQhiWC
 github.com/retailnext/hllpp v1.0.1-0.20180308014038-101a6d2f8b52/go.mod h1:RDpi1RftBQPUCDRw6SmxeaREsAaRKnOclghuzp/WRzc=
 github.com/rjeczalik/notify v0.9.1 h1:CLCKso/QK1snAlnhNR/CNvNiFU2saUtjV0bx3EwNeCE=
 github.com/rjeczalik/notify v0.9.1/go.mod h1:rKwnCoCGeuQnwBtTSPL9Dad03Vh2n40ePRrjvIXnJho=
-github.com/rjman-self/go-substrate-rpc-client/v2 v2.1.1-0.20210228105504-31eab1ed089b h1:gy0Jaj5mybReZD49i51Znlz4Ycc/7MN+VXYOdUPCKQw=
-github.com/rjman-self/go-substrate-rpc-client/v2 v2.1.1-0.20210228105504-31eab1ed089b/go.mod h1:FvTQxAPFHIgGYsmNciyw8cddwV+KzmIUJNti0VR9+P4=
-github.com/rjman-self/platdot-utils v1.0.9 h1:ltmkkE/u+kcgxXtxeTj4ycw8VAG97gDjiZNQ6dzs4fA=
-github.com/rjman-self/platdot-utils v1.0.9/go.mod h1:7Xi94rlxQko0FJ0PAxywzxqVgQo86RJ9UO4X4rqmuUQ=
+github.com/rjman-self/sherpax-utils v1.0.1 h1:HbyMM9Hxd+ekgrjlGx+qDQR5W1/MH0SIvrpoZVfXo24=
+github.com/rjman-self/sherpax-utils v1.0.1/go.mod h1:PWTprgu7khXp7v9F5HVltoYcP5PvEs9lm1AD+suT23c=
 github.com/rjman-self/substrate-go v1.5.4 h1:Y6DBlva1LG+3+w3KbwhSwp3G6Y+bo7qQnE0ZtHIKfXc=
 github.com/rjman-self/substrate-go v1.5.4/go.mod h1:hGNENiAzQjvjg3DipfVx/IJxVHXZAjovzbHpiODtUGk=
 github.com/rjmand/go-substrate-rpc-client/v2 v2.1.1-0.20210228120507-d15559aaddb1/go.mod h1:opE+pB/SAyI9m2Y95pkgvtio/cf9LXq2lpW4aOQck9A=

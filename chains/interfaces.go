@@ -4,7 +4,7 @@
 package chains
 
 import (
-	"github.com/rjman-self/platdot-utils/msg"
+	"github.com/rjman-self/sherpax-utils/msg"
 )
 
 type Router interface {

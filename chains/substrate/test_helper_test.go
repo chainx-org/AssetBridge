@@ -5,14 +5,14 @@ package substrate
 
 //
 //import (
-//	"github.com/centrifuge/go-substrate-rpc-client/v2/signature"
+//	"github.com/centrifuge/go-substrate-rpc-client/v3/signature"
 //	"os"
 //	"testing"
 //
-//	"github.com/ChainSafe/bsc-utils/keystore"
-//	"github.com/ChainSafe/bsc-utils/msg"
+//	"github.com/ChainSafe/ethlike-utils/keystore"
+//	"github.com/ChainSafe/ethlike-utils/msg"
 //	"github.com/ChainSafe/log15"
-//	"github.com/centrifuge/go-substrate-rpc-client/v2/types"
+//	"github.com/centrifuge/go-substrate-rpc-client/v3/types"
 //	"github.com/ethereum/go-ethereum/common/hexutil"
 //	utils "github.com/Rjman-self/BBridge/shared/substrate"
 //)

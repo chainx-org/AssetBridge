@@ -18,7 +18,7 @@ Writer
 
 The writer recieves the message and creates a proposals on-chain. Once a proposal is made, the writer then watches for a finalization event and will attempt to execute the proposal if a matching event occurs. The writer skips over any proposals it has already seen.
 */
-package bsc
+package ethlike
 
 import (
 	"fmt"
@@ -30,12 +30,12 @@ import (
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/ethclient"
-	"github.com/rjman-self/platdot-utils/blockstore"
-	"github.com/rjman-self/platdot-utils/core"
-	"github.com/rjman-self/platdot-utils/crypto/secp256k1"
-	"github.com/rjman-self/platdot-utils/keystore"
-	metrics "github.com/rjman-self/platdot-utils/metrics/types"
-	"github.com/rjman-self/platdot-utils/msg"
+	"github.com/rjman-self/sherpax-utils/blockstore"
+	"github.com/rjman-self/sherpax-utils/core"
+	"github.com/rjman-self/sherpax-utils/crypto/secp256k1"
+	"github.com/rjman-self/sherpax-utils/keystore"
+	metrics "github.com/rjman-self/sherpax-utils/metrics/types"
+	"github.com/rjman-self/sherpax-utils/msg"
 	"math/big"
 	"strconv"
 )
@@ -141,14 +141,14 @@ func InitializeChain(chainCfg *core.ChainConfig, logger log15.Logger, sysErr cha
 		}
 		cfg.startBlock = curr
 		switch cfg.id {
-		case config.BSC:
+		case config.IdBSC:
 			log15.Info(" Start block is newest", "StartBlock", cfg.startBlock)
 		default:
 			log15.Info("Start block is newest", "StartBlock", cfg.startBlock)
 		}
 	} else {
 		switch cfg.id {
-		case config.BSC:
+		case config.IdBSC:
 			log15.Info("BSC Start block is specified", "StartBlock", cfg.startBlock)
 		default:
 			log15.Info("Start block is specified", "StartBlock", cfg.startBlock)

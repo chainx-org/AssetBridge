@@ -1,12 +1,31 @@
 // Copyright 2020 ChainSafe Systems
 // SPDX-License-Identifier: LGPL-3.0-only
 
-package bsc
+package ethlike
 
 import (
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
-	"github.com/rjman-self/platdot-utils/msg"
+	"github.com/rjman-self/sherpax-utils/msg"
 )
+
+func (l *listener) handleNativeDepositedEvent(destId msg.ChainId, nonce msg.Nonce) (msg.Message, error) {
+	l.log.Info("Handling Native deposit event", "dest", destId, "nonce", nonce)
+
+	record, err := l.erc20HandlerContract.GetDepositRecord(&bind.CallOpts{From: l.conn.Keypair().CommonAddress()}, uint64(nonce), uint8(destId))
+	if err != nil {
+		l.log.Error("Error Unpacking Native Deposit Record", "err", err)
+		return msg.Message{}, err
+	}
+
+	return msg.NewNativeTransfer(
+		l.cfg.id,
+		destId,
+		nonce,
+		record.Amount,
+		record.ResourceID,
+		record.DestinationRecipientAddress,
+	), nil
+}
 
 func (l *listener) handleErc20DepositedEvent(destId msg.ChainId, nonce msg.Nonce) (msg.Message, error) {
 	l.log.Info("Handling fungible deposit event", "dest", destId, "nonce", nonce)

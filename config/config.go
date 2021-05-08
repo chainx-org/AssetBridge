@@ -6,7 +6,7 @@ package config
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/rjman-self/platdot-utils/msg"
+	"github.com/rjman-self/sherpax-utils/msg"
 	"os"
 	"path/filepath"
 
@@ -22,15 +22,31 @@ const DefaultBlockTimeout = int64(180) // 3 minutes
 
 /// ChainId Type
 const (
-	/// Eth
-	BSC       		msg.ChainId = 2
+	/// EthLike
+	IdBSC       			msg.ChainId = 2
 	/// Sub
-	Kusama    		msg.ChainId = 1
-	Polkadot  		msg.ChainId = 5
-	ChainXBTCV1 	msg.ChainId = 3
-	ChainXPCXV1 	msg.ChainId = 7
-	ChainXBTCV2     msg.ChainId = 9
-	ChainXPCXV2 	msg.ChainId = 11
+	IdKusama    			msg.ChainId = 1
+	IdPolkadot  			msg.ChainId = 5
+	IdChainXBTCV1 			msg.ChainId = 3
+	IdChainXPCXV1 			msg.ChainId = 7
+	IdChainXBTCV2     		msg.ChainId = 9
+	IdChainXPCXV2 			msg.ChainId = 11
+)
+const (
+	NameUnimplemented				string = "unimplemented"
+	/// EthLike
+	NameBSC					string = "bsc"
+	NameETH					string = "eth"
+
+	/// SubBased
+	NameKusama				string = "kusama"
+	NamePolkadot			string = "polkadot"
+	NameChainXAsset			string = "chainxasset"
+	NameChainXPCX			string = "chainxpcx"
+	NameChainX				string = "chainx"
+	NameSherpaXAsset        string = "sherpaxasset"
+	NameSherpaXPCX          string = "sherpaxpcx"
+	NameSherpaX				string = "sherpax"
 )
 
 type Config struct {

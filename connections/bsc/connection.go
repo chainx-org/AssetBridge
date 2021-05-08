@@ -13,7 +13,7 @@ import (
 	ethcrypto "github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/ethereum/go-ethereum/rpc"
-	"github.com/rjman-self/platdot-utils/crypto/secp256k1"
+	"github.com/rjman-self/sherpax-utils/crypto/secp256k1"
 	"math/big"
 	"sync"
 	"time"

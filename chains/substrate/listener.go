@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"github.com/JFJun/go-substrate-crypto/ss58"
 	"github.com/Rjman-self/BBridge/config"
+	utils "github.com/Rjman-self/BBridge/shared/substrate"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/rjman-self/substrate-go/expand"
 	"github.com/rjman-self/substrate-go/expand/base"
@@ -16,15 +17,17 @@ import (
 
 	"github.com/rjman-self/substrate-go/client"
 
-	"github.com/rjmand/go-substrate-rpc-client/v2/types"
+	"github.com/centrifuge/go-substrate-rpc-client/v3/types"
 	"math/big"
 	"time"
 
 	"github.com/ChainSafe/log15"
 	"github.com/Rjman-self/BBridge/chains"
-	"github.com/rjman-self/platdot-utils/blockstore"
-	metrics "github.com/rjman-self/platdot-utils/metrics/types"
-	"github.com/rjman-self/platdot-utils/msg"
+	gsrpc "github.com/centrifuge/go-substrate-rpc-client/v3"
+	types3 "github.com/centrifuge/go-substrate-rpc-client/v3/types"
+	"github.com/rjman-self/sherpax-utils/blockstore"
+	metrics "github.com/rjman-self/sherpax-utils/metrics/types"
+	"github.com/rjman-self/sherpax-utils/msg"
 )
 
 type listener struct {
@@ -35,6 +38,7 @@ type listener struct {
 	lostAddress   string
 	blockStore    blockstore.Blockstorer
 	conn          *Connection
+	subscriptions map[eventName]eventHandler // Handlers for specific events
 	router        chains.Router
 	log           log15.Logger
 	stop          <-chan int
@@ -50,11 +54,13 @@ type listener struct {
 	relayer       Relayer
 }
 
+var ErrBlockNotReady = errors.New("required result to be 32 bytes, but got 0")
+
 // Frequency of polling for a new block
 const InitCapacity = 100
 
 var BlockRetryInterval = time.Second * 5
-var BlockRetryLimit = 20
+var BlockRetryLimit = 30
 var RedeemRetryLimit = 15
 var KSM int64 = 1e12
 var DOT int64 = 1e10
@@ -63,6 +69,7 @@ var FixedKSMFee = KSM * 3 / 100	/// 0.03KSM
 var FixedDOTFee = DOT * 5 / 10	/// 0.5DOT
 var FixedPCXFee = PCX * 1 / 10	/// 0.1PCX
 var FeeRate int64 = 1000
+
 
 func NewListener(conn *Connection, name string, id msg.ChainId, startBlock uint64, endBlock uint64, lostAddress string, log log15.Logger, bs blockstore.Blockstorer,
 	stop <-chan int, sysErr chan<- error, m *metrics.ChainMetrics, multiSignAddress types.AccountID, cli *client.Client,
@@ -75,6 +82,7 @@ func NewListener(conn *Connection, name string, id msg.ChainId, startBlock uint6
 		lostAddress:   lostAddress,
 		blockStore:    bs,
 		conn:          conn,
+		subscriptions: make(map[eventName]eventHandler),
 		log:           log,
 		stop:          stop,
 		sysErr:        sysErr,
@@ -104,12 +112,29 @@ func (l *listener) start() error {
 		return fmt.Errorf("starting block (%d) is greater than latest known block (%d)", l.startBlock, header.Number)
 	}
 
+	for _, sub := range Subscriptions {
+		err := l.registerEventHandler(sub.name, sub.handler)
+		if err != nil {
+			return err
+		}
+	}
+
 	go func() {
 		l.connect()
 	}()
 
 	return nil
 }
+
+// registerEventHandler enables a handler for a given event. This cannot be used after Start is called.
+func (l *listener) registerEventHandler(name eventName, handler eventHandler) error {
+	if l.subscriptions[name] != nil {
+		return fmt.Errorf("event %s already registered", name)
+	}
+	l.subscriptions[name] = handler
+	return nil
+}
+
 
 func (l *listener) connect() {
 	err := l.pollBlocks()
@@ -127,7 +152,8 @@ func (l *listener) reconnect() {
 			l.log.Error("Retry...", "chain", l.name)
 			cli, err := client.New(l.conn.url)
 			if err == nil {
-				InitializePrefix(l.chainId, cli)
+				//InitializePrefixById(l.chainId, cli)
+				InitializePrefixByName(l.name, cli)
 				l.client = *cli
 			}
 			ClientRetryLimit = BlockRetryLimit
@@ -220,9 +246,30 @@ func (l *listener) pollBlocks() error {
 				return nil
 			}
 
+			/// Listen Native Transfer
 			err = l.processBlock(int64(currentBlock))
 			if err != nil {
 				l.log.Error(FailedToProcessCurrentBlock, "block", currentBlock, "err", err)
+				retry--
+				continue
+			}
+
+			/// Listen Erc20/Erc721/Generic Transfer
+			// Get hash for latest block, sleep and retry if not ready
+			hash, err := l.conn.api.RPC.Chain.GetBlockHash(currentBlock)
+			if err != nil && err.Error() == ErrBlockNotReady.Error() {
+				time.Sleep(BlockRetryInterval)
+				continue
+			} else if err != nil {
+				l.log.Error("Failed to query current block", "block", currentBlock, "err", err)
+				retry--
+				time.Sleep(BlockRetryInterval)
+				continue
+			}
+
+			err = l.processEvents(hash)
+			if err != nil {
+				l.log.Error("Failed to process events in block", "block", currentBlock, "err", err)
 				retry--
 				continue
 			}
@@ -271,6 +318,86 @@ func (l *listener) processBlock(currentBlock int64) error {
 	}
 	return nil
 }
+
+
+// processEvents fetches a block and parses out the events, calling Listener.handleEvents()
+func (l *listener) processEvents(hash types3.Hash) error {
+	l.log.Trace("Fetching block for events", "hash", hash.Hex())
+
+	api, err := gsrpc.NewSubstrateAPI(l.conn.url)
+	if err != nil {
+		l.logErr("New api Err", err)
+	}
+
+	meta := l.conn.getMetadata()
+
+	key, err := types3.CreateStorageKey(&meta, "System", "Events", nil, nil)
+	if err != nil {
+		return err
+	}
+
+	var records types3.EventRecordsRaw
+	_, err = api.RPC.State.GetStorage(key, &records, types3.Hash(hash))
+	if err != nil {
+		return err
+	}
+
+	e := utils.Events{}
+	err = records.DecodeEventRecords(&meta, &e)
+	if err != nil {
+		return err
+	}
+
+	l.handleEvents(e)
+	l.log.Trace("Finished processing events", "block", hash.Hex())
+
+	return nil
+}
+
+// handleEvents calls the associated handler for all registered event types
+func (l *listener) handleEvents(evts utils.Events) {
+	if l.subscriptions[FungibleTransfer] != nil {
+		for _, evt := range evts.ChainBridge_FungibleTransfer {
+			l.log.Trace("Handling FungibleTransfer event")
+			l.submitMessage(l.subscriptions[FungibleTransfer](evt, l.log))
+		}
+	}
+	if l.subscriptions[NonFungibleTransfer] != nil {
+		for _, evt := range evts.ChainBridge_NonFungibleTransfer {
+			l.log.Trace("Handling NonFungibleTransfer event")
+			l.submitMessage(l.subscriptions[NonFungibleTransfer](evt, l.log))
+		}
+	}
+	if l.subscriptions[GenericTransfer] != nil {
+		for _, evt := range evts.ChainBridge_GenericTransfer {
+			l.log.Trace("Handling GenericTransfer event")
+			l.submitMessage(l.subscriptions[GenericTransfer](evt, l.log))
+		}
+	}
+
+	if len(evts.System_CodeUpdated) > 0 {
+		l.log.Trace("Received CodeUpdated event")
+		err := l.conn.updateMetatdata()
+		if err != nil {
+			l.log.Error("Unable to update Metadata", "error", err)
+		}
+	}
+}
+
+// submitMessage inserts the chainId into the msg and sends it to the router
+func (l *listener) submitMessage(m msg.Message, err error) {
+	if err != nil {
+		log15.Error("Critical error processing event", "err", err)
+		return
+	}
+	m.Source = l.chainId
+	err = l.router.Send(m)
+	if err != nil {
+		log15.Error("failed to process event", "err", err)
+	}
+}
+
+
 func (l *listener) dealBlockTx(resp *models.BlockResponse, currentBlock int64) {
 	for _, e := range resp.Extrinsic {
 		if e.Status == "fail" {
@@ -326,7 +453,7 @@ func (l *listener) dealBlockTx(resp *models.BlockResponse, currentBlock int64) {
 
 			depositNonce, _ := strconv.ParseInt(strconv.FormatInt(currentBlock, 10)+strconv.FormatInt(int64(e.ExtrinsicIndex), 10), 10, 64)
 
-			m := msg.NewFungibleTransfer(
+			m := msg.NewNativeTransfer(
 				l.chainId,
 				l.destId,
 				msg.Nonce(depositNonce),
@@ -334,20 +461,15 @@ func (l *listener) dealBlockTx(resp *models.BlockResponse, currentBlock int64) {
 				l.resourceId,
 				recipient[:],
 			)
+			if m.Destination <= 100 {
+				fmt.Printf("Sub listener make a `NativeTransfer`, dest is %v, delete this line\n", m.Destination)
+			}
 			l.logReadyToSend(sendAmount, recipient, e)
-			l.submitMessage(m)
+			l.submitMessage(m, nil)
 		}
 	}
 }
 
-// submitMessage inserts the chainId into the msg and sends it to the router
-func (l *listener) submitMessage(m msg.Message) {
-	m.Source = l.chainId
-	err := l.router.Send(m)
-	if err != nil {
-		log15.Error("failed to process event", "err", err)
-	}
-}
 
 func (l *listener) markNew(e *models.ExtrinsicResponse) {
 	msTx := MultiSigAsMulti{
@@ -410,7 +532,7 @@ func (l *listener) getSendAmount(e *models.ExtrinsicResponse) (*big.Int, bool) {
 	}
 	sendAmount := big.NewInt(0)
 	actualAmount := big.NewInt(0)
-	if l.chainId == config.Polkadot {
+	if l.chainId == config.IdPolkadot {
 		/// DOT is 10 digits.
 		fixedFee := big.NewInt(FixedDOTFee)
 		additionalFee := big.NewInt(0).Div(amount, big.NewInt(FeeRate))
@@ -423,7 +545,7 @@ func (l *listener) getSendAmount(e *models.ExtrinsicResponse) (*big.Int, bool) {
 		}
 		sendAmount.Mul(actualAmount, big.NewInt(oneDOT))
 		l.logCrossChainTx("DOT", "BDOT", amount, fee, actualAmount)
-	} else if l.chainId == config.Kusama {
+	} else if l.chainId == config.IdKusama {
 		/// KSM is 12 digits.
 		fixedFee := big.NewInt(FixedKSMFee)
 		additionalFee := big.NewInt(0).Div(amount, big.NewInt(FeeRate))
@@ -436,11 +558,11 @@ func (l *listener) getSendAmount(e *models.ExtrinsicResponse) (*big.Int, bool) {
 		}
 		sendAmount.Mul(actualAmount, big.NewInt(oneKSM))
 		l.logCrossChainTx("KSM", "BKSM", amount, fee, actualAmount)
-	} else if (l.chainId == config.ChainXBTCV1 || l.chainId == config.ChainXBTCV2) && e.AssetId == XBTC {
+	} else if (l.chainId == config.IdChainXBTCV1 || l.chainId == config.IdChainXBTCV2) && e.AssetId == XBTC {
 		/// XBTC is 8 digits.
 		sendAmount.Mul(amount, big.NewInt(oneXBTC))
 		l.logCrossChainTx("XBTC", "BBTC", amount, big.NewInt(0), amount)
-	} else if (l.chainId == config.ChainXPCXV1 || l.chainId == config.ChainXPCXV2) && e.AssetId == expand.PcxAssetId {
+	} else if (l.chainId == config.IdChainXPCXV1 || l.chainId == config.IdChainXPCXV2) && e.AssetId == expand.PcxAssetId {
 		/// PCX is 8 digits.
 		fixedFee := big.NewInt(FixedPCXFee)
 		additionalFee := big.NewInt(0).Div(amount, big.NewInt(FeeRate))
@@ -500,23 +622,23 @@ func (l *listener) logCrossChainTx (tokenX string, tokenY string, amount *big.In
 func (l *listener) logReadyToSend(amount *big.Int, recipient []byte, e *models.ExtrinsicResponse) {
 	var token string
 	switch l.chainId {
-	case config.Kusama:
+	case config.IdKusama:
 		token = "AKSM"
-	case config.Polkadot:
+	case config.IdPolkadot:
 		token = "PDOT"
-	case config.ChainXBTCV1:
+	case config.IdChainXBTCV1:
 		if e.AssetId == XBTC {
 			token = "ABTC"
 		}
-	case config.ChainXBTCV2:
+	case config.IdChainXBTCV2:
 		if e.AssetId == XBTC {
 			token = "ABTC"
 		}
-	case config.ChainXPCXV1:
+	case config.IdChainXPCXV1:
 		if e.AssetId == expand.PcxAssetId {
 			token = "APCX"
 		}
-	case config.ChainXPCXV2:
+	case config.IdChainXPCXV2:
 		if e.AssetId == expand.PcxAssetId {
 			token = "APCX"
 		}

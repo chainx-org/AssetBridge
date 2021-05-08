@@ -1,7 +1,7 @@
 // Copyright 2020 ChainSafe Systems
 // SPDX-License-Identifier: LGPL-3.0-only
 
-package bsc
+package ethlike
 
 import (
 	"context"
@@ -13,7 +13,7 @@ import (
 
 	log "github.com/ChainSafe/log15"
 	utils "github.com/Rjman-self/BBridge/shared/bsc"
-	"github.com/rjman-self/platdot-utils/msg"
+	"github.com/rjman-self/sherpax-utils/msg"
 )
 
 // Number of blocks to wait for an finalization event

@@ -15,8 +15,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/rjman-self/platdot-utils/crypto"
-	"github.com/rjman-self/platdot-utils/keystore"
+	"github.com/rjman-self/sherpax-utils/crypto"
+	"github.com/rjman-self/sherpax-utils/keystore"
 	"github.com/stretchr/testify/require"
 	"github.com/urfave/cli/v2"
 )
@@ -147,31 +147,31 @@ func TestAccountCommands(t *testing.T) {
 		function    func(*cli.Context, *dataHandler) error
 	}{
 		{
-			"Test bsc account generate --secp256k1 --password \"abc\"",
+			"Test ethlike account generate --secp256k1 --password \"abc\"",
 			[]string{"secp256k1", "password"},
 			[]interface{}{true, "abc"},
 			handleGenerateCmd,
 		},
 		{
-			"Test bsc account generate --sr25519 --password \"abc\"",
+			"Test ethlike account generate --sr25519 --password \"abc\"",
 			[]string{"sr25519", "password"},
 			[]interface{}{true, "abc"},
 			handleGenerateCmd,
 		},
 		{
-			"Test bsc account import --secp256k1 --password \"abc\" --privateKey 000000000000000000000000000000000000000000000000000000416c696365",
+			"Test ethlike account import --secp256k1 --password \"abc\" --privateKey 000000000000000000000000000000000000000000000000000000416c696365",
 			[]string{"secp256k1", "password", "privateKey"},
 			[]interface{}{true, "abc", "000000000000000000000000000000000000000000000000000000416c696365"},
 			handleImportCmd,
 		},
 		{
-			"Test bsc account import --sr25519 --password \"abc\" --privateKey 000000000000000000000000000000000000000000000000000000416c696365",
+			"Test ethlike account import --sr25519 --password \"abc\" --privateKey 000000000000000000000000000000000000000000000000000000416c696365",
 			[]string{"sr25519", "password", "privateKey"},
 			[]interface{}{true, "abc", "0xfa67e5b3c421ac1b9e3d59a74f09fa18f9ad41ec381ba95e5087cb164c03121b"},
 			handleImportCmd,
 		},
 		{
-			"Test bsc account list",
+			"Test ethlike account list",
 			[]string{},
 			[]interface{}{},
 			handleListCmd,

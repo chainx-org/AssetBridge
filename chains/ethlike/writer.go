@@ -1,14 +1,14 @@
 // Copyright 2020 ChainSafe Systems
 // SPDX-License-Identifier: LGPL-3.0-only
 
-package bsc
+package ethlike
 
 import (
 	"github.com/ChainSafe/log15"
 	"github.com/Rjman-self/BBridge/bindings/Bridge"
-	"github.com/rjman-self/platdot-utils/core"
-	metrics "github.com/rjman-self/platdot-utils/metrics/types"
-	"github.com/rjman-self/platdot-utils/msg"
+	"github.com/rjman-self/sherpax-utils/core"
+	metrics "github.com/rjman-self/sherpax-utils/metrics/types"
+	"github.com/rjman-self/sherpax-utils/msg"
 )
 
 var _ core.Writer = &writer{}
@@ -54,6 +54,8 @@ func (w *writer) setContract(bridge *Bridge.Bridge) {
 func (w *writer) ResolveMessage(m msg.Message) bool {
 	w.log.Info("Attempting to resolve message", "type", m.Type, "src", m.Source, "dst", m.Destination, "nonce", m.DepositNonce, "rId", m.ResourceId.Hex(), "recipient", m.Payload[1])
 	switch m.Type {
+	case msg.NativeTransfer:
+		return w.createErc20Proposal(m)
 	case msg.FungibleTransfer:
 		return w.createErc20Proposal(m)
 	case msg.NonFungibleTransfer:

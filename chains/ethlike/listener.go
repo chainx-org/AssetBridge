@@ -1,7 +1,7 @@
 // Copyright 2020 ChainSafe Systems
 // SPDX-License-Identifier: LGPL-3.0-only
 
-package bsc
+package ethlike
 
 import (
 	"context"
@@ -20,13 +20,15 @@ import (
 	eth "github.com/ethereum/go-ethereum"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	ethcommon "github.com/ethereum/go-ethereum/common"
-	"github.com/rjman-self/platdot-utils/blockstore"
-	metrics "github.com/rjman-self/platdot-utils/metrics/types"
-	"github.com/rjman-self/platdot-utils/msg"
+	"github.com/rjman-self/sherpax-utils/blockstore"
+	metrics "github.com/rjman-self/sherpax-utils/metrics/types"
+	"github.com/rjman-self/sherpax-utils/msg"
 )
 
 var BlockRetryInterval = time.Second * 5
-var BlockRetryLimit = 20
+var BlockRetryLimit = 30
+var NativeLimit msg.ChainId = 100
+
 //var ErrFatalPolling = errors.New("listener block polling failed")
 
 type listener struct {
@@ -216,7 +218,9 @@ func (l *listener) getDepositEventsForBlock(latestBlock *big.Int) error {
 			return fmt.Errorf("failed to get handler from resource ID %x", rId)
 		}
 
-		if addr == l.cfg.erc20HandlerContract {
+		if addr == l.cfg.erc20HandlerContract && isNative(m) {
+			m, err = l.handleNativeDepositedEvent(destId, nonce)
+		} else if addr == l.cfg.erc20HandlerContract && !isNative(m) {
 			m, err = l.handleErc20DepositedEvent(destId, nonce)
 		} else if addr == l.cfg.erc721HandlerContract {
 			m, err = l.handleErc721DepositedEvent(destId, nonce)
@@ -253,6 +257,13 @@ func buildQuery(contract ethcommon.Address, sig utils.EventSig, startBlock *big.
 	return query
 }
 
+func isNative(m msg.Message) bool {
+	if m.Destination <= NativeLimit {
+		return true
+	} else {
+		return false
+	}
+}
 
 func (l *listener) logBlock(currentBlock uint64) {
 	if currentBlock % 5 == 0 {

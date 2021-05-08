@@ -12,7 +12,7 @@ import (
 	bridge "github.com/Rjman-self/BBridge/bindings/Bridge"
 	erc20Handler "github.com/Rjman-self/BBridge/bindings/ERC20Handler"
 	erc721Handler "github.com/Rjman-self/BBridge/bindings/ERC721Handler"
-	"github.com/rjman-self/platdot-utils/keystore"
+	"github.com/rjman-self/sherpax-utils/keystore"
 )
 
 var (

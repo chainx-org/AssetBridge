@@ -1,0 +1,27 @@
+{
+  "chains": [
+    {
+      "name": "bsc",
+      "type": "ethereum",
+      "id": "2",
+      "endpoint": "https://data-seed-prebsc-1-s3.binance.org:8545",
+      "from": "0xb742b10d22f30eEA9A7e338e79f0DB5D334E1197",
+      "opts": {
+        "bridge": "0xeEc45984F86f35AF9F6489fd30a7f0aa655c08dB",
+        "erc20Handler": "0x04c20C38e015e52685ba7DC34E839960a23C03CC",
+        "http": "true",
+        "networkId": "97"
+      }
+    },
+    {
+      "name": "chainxbnb",
+      "type": "substrate",
+      "id": "101",
+      "endpoint": "ws://localhost:9977",
+      "from": "14iVc5RxY7zG8dbLWwzTfGcFstzojQuRJbgegVgumguzguWQ",
+      "opts": {
+        "DestId": "2"
+      }
+    }
+  ]
+}

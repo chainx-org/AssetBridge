@@ -5,12 +5,12 @@ package substrate
 
 import (
 	log "github.com/ChainSafe/log15"
-	"github.com/centrifuge/go-substrate-rpc-client/v2/types"
+	"github.com/centrifuge/go-substrate-rpc-client/v3/types"
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/rjman-self/platdot-utils/msg"
+	"github.com/rjman-self/sherpax-utils/msg"
 	"strconv"
 
-	"github.com/rjman-self/platdot-utils/core"
+	"github.com/rjman-self/sherpax-utils/core"
 )
 
 func parseStartBlock(cfg *core.ChainConfig) uint64 {

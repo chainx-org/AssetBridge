@@ -72,6 +72,16 @@
         "MaxWeight": "22698000000",
         "DestId": "2"
       }
+    },
+    {
+      "name": "sherpax_bnb",
+      "type": "substrate",
+      "id": "101",
+      "endpoint": "ws://localhost:9977",
+      "from": "5CHwt8bFyDLC3MyzPQugmmxZTGjShBW2kFMWiC2kSL5TuJxd",
+      "opts": {
+        "DestId": "2"
+      }
     }
   ]
 }

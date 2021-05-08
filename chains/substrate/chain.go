@@ -26,17 +26,18 @@ package substrate
 import (
 	"github.com/ChainSafe/log15"
 	"github.com/JFJun/go-substrate-crypto/ss58"
+	"github.com/Rjman-self/BBridge/chains/chain"
 	"github.com/Rjman-self/BBridge/config"
-	"github.com/centrifuge/go-substrate-rpc-client/v2/signature"
-	"github.com/rjman-self/platdot-utils/blockstore"
-	"github.com/rjman-self/platdot-utils/core"
-	"github.com/rjman-self/platdot-utils/crypto/sr25519"
-	"github.com/rjman-self/platdot-utils/keystore"
-	metrics "github.com/rjman-self/platdot-utils/metrics/types"
-	"github.com/rjman-self/platdot-utils/msg"
+	"github.com/centrifuge/go-substrate-rpc-client/v3/signature"
+	"github.com/centrifuge/go-substrate-rpc-client/v3/types"
+	"github.com/rjman-self/sherpax-utils/blockstore"
+	"github.com/rjman-self/sherpax-utils/core"
+	"github.com/rjman-self/sherpax-utils/crypto/sr25519"
+	"github.com/rjman-self/sherpax-utils/keystore"
+	metrics "github.com/rjman-self/sherpax-utils/metrics/types"
+	"github.com/rjman-self/sherpax-utils/msg"
 	"github.com/rjman-self/substrate-go/client"
 	"github.com/rjman-self/substrate-go/expand"
-	"github.com/rjmand/go-substrate-rpc-client/v2/types"
 )
 
 var _ core.Chain = &Chain{}
@@ -86,7 +87,7 @@ func InitializeChain(cfg *core.ChainConfig, logger log15.Logger, sysErr chan<- e
 	stop := make(chan int)
 
 	/// Setup connection
-	conn := NewConnection(cfg.Endpoint, cfg.Name, krp, logger, stop, sysErr)
+	conn := NewConnection(cfg.Endpoint, cfg.Name, (*signature.KeyringPair)(krp), logger, stop, sysErr)
 
 	err = conn.Connect()
 	if err != nil {
@@ -121,7 +122,9 @@ func InitializeChain(cfg *core.ChainConfig, logger log15.Logger, sysErr chan<- e
 	}
 
 	/// Initialize prefix
-	InitializePrefix(cfg.Id, cli)
+	//InitializePrefixById(cfg.Id, cli)
+	InitializePrefixByName(cfg.Name, cli)
+
 	log15.Info("Initialize ChainInfo", "Prefix", cli.Prefix, "Name", cli.Name, "Id", cfg.Id)
 
 	/// Set relayer parameters
@@ -140,23 +143,42 @@ func InitializeChain(cfg *core.ChainConfig, logger log15.Logger, sysErr chan<- e
 	}, nil
 }
 
-func InitializePrefix(id msg.ChainId, cli *client.Client) {
-	switch id {
-	case config.Kusama:
+func InitializePrefixByName(name string, cli *client.Client) {
+	prefixName := chain.GetChainPrefix(name)
+	switch prefixName {
+	case config.NameChainXAsset:
+		cli.SetPrefix(ss58.ChainXPrefix)
+		cli.Name = expand.ChainXbtc
+	case config.NameChainXPCX:
+		cli.SetPrefix(ss58.ChainXPrefix)
+		cli.Name = expand.ChainXpcx
+	case config.NamePolkadot:
 		cli.SetPrefix(ss58.PolkadotPrefix)
-	case config.ChainXBTCV1:
+	case config.NameKusama:
+		cli.SetPrefix(ss58.PolkadotPrefix)
+	default:
+		cli.SetPrefix(ss58.PolkadotPrefix)
+		cli.Name = "Why is there no name?"
+	}
+}
+
+func InitializePrefixById(id msg.ChainId, cli *client.Client) {
+	switch id {
+	case config.IdKusama:
+		cli.SetPrefix(ss58.PolkadotPrefix)
+	case config.IdChainXBTCV1:
 		cli.SetPrefix(ss58.ChainXPrefix)
 		cli.Name = expand.ChainXbtc
-	case config.ChainXBTCV2:
+	case config.IdChainXBTCV2:
 		cli.SetPrefix(ss58.ChainXPrefix)
 		cli.Name = expand.ChainXbtc
-	case config.ChainXPCXV1:
+	case config.IdChainXPCXV1:
 		cli.SetPrefix(ss58.ChainXPrefix)
 		cli.Name = expand.ChainXpcx
-	case config.ChainXPCXV2:
+	case config.IdChainXPCXV2:
 		cli.SetPrefix(ss58.ChainXPrefix)
 		cli.Name = expand.ChainXpcx
-	case config.Polkadot:
+	case config.IdPolkadot:
 		cli.SetPrefix(ss58.PolkadotPrefix)
 	default:
 		cli.SetPrefix(ss58.PolkadotPrefix)

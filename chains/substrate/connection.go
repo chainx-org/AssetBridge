@@ -8,13 +8,13 @@ import (
 	"sync"
 
 	"github.com/ChainSafe/log15"
-	"github.com/rjman-self/platdot-utils/msg"
-	gsrpc "github.com/rjmand/go-substrate-rpc-client/v2"
+	"github.com/rjman-self/sherpax-utils/msg"
+	gsrpc "github.com/centrifuge/go-substrate-rpc-client/v3"
 
 	utils "github.com/Rjman-self/BBridge/shared/substrate"
-	"github.com/rjmand/go-substrate-rpc-client/v2/rpc/author"
-	"github.com/rjmand/go-substrate-rpc-client/v2/signature"
-	"github.com/rjmand/go-substrate-rpc-client/v2/types"
+	"github.com/centrifuge/go-substrate-rpc-client/v3/rpc/author"
+	"github.com/centrifuge/go-substrate-rpc-client/v3/signature"
+	"github.com/centrifuge/go-substrate-rpc-client/v3/types"
 )
 
 type Connection struct {

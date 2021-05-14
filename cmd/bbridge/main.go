@@ -15,7 +15,6 @@ import (
 	"github.com/rjman-self/sherpax-utils/metrics/health"
 	metrics "github.com/rjman-self/sherpax-utils/metrics/types"
 	"github.com/rjman-self/sherpax-utils/msg"
-	"github.com/status-im/keycard-go/hexutils"
 	"github.com/urfave/cli/v2"
 	"net/http"
 	"os"
@@ -113,11 +112,6 @@ func init() {
 }
 
 func main() {
-	hexBytes := hexutils.HexToBytes("42616C616E6365732E7472616E73666572")
-	strBytes := []byte("Balances.transfer")
-	strHex := hexutils.BytesToHex(strBytes)
-	fmt.Printf("hexBytes = %v, strBytes = %v, strHex = %v\n", hexBytes, strBytes, strHex)
-
 	if err := app.Run(os.Args); err != nil {
 		log.Error(err.Error())
 		os.Exit(1)

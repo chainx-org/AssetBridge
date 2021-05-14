@@ -32,8 +32,9 @@ const (
 	IdChainXBTCV2     		msg.ChainId = 9
 	IdChainXPCXV2 			msg.ChainId = 11
 )
+
 const (
-	NameUnimplemented				string = "unimplemented"
+	NameUnimplemented		string = "unimplemented"
 	/// EthLike
 	NameBSC					string = "bsc"
 	NameETH					string = "eth"

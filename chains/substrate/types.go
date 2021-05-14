@@ -5,6 +5,9 @@ package substrate
 
 import (
 	"bytes"
+	"fmt"
+	"github.com/Rjman-self/BBridge/config"
+	utils "github.com/Rjman-self/BBridge/shared/substrate"
 	"github.com/centrifuge/go-substrate-rpc-client/v3/scale"
 	"github.com/centrifuge/go-substrate-rpc-client/v3/types"
 	"github.com/rjman-self/sherpax-utils/msg"
@@ -17,6 +20,7 @@ import (
 /// AssetId Type
 const (
 	XBTC			xevents.AssetId = 1
+	XBNB			xevents.AssetId = 2
 )
 const (
 	/// MultiSigTx Message
@@ -245,9 +249,23 @@ func (w *writer) createNativeTx(m msg.Message) {
 }
 
 func (w *writer) createFungibleProposal(m msg.Message) (*proposal, error) {
-	bigAmt := big.NewInt(0).SetBytes(m.Payload[0].([]byte))
-	amount := types.NewU128(*bigAmt)
-	recipient := types.NewAccountID(m.Payload[1].([]byte))
+	amount := big.NewInt(0).SetBytes(m.Payload[0].([]byte))
+	/// Convert BBTC amount to XBTC amount
+	actualAmount := big.NewInt(0)
+	actualAmount.Div(amount, big.NewInt(oneXAsset))
+	if actualAmount.Cmp(big.NewInt(0)) == -1 {
+		return nil, fmt.Errorf("create fungible proposal error, neg amount")
+	}
+	w.logCrossChainTx("BNB", "XBNB", actualAmount, big.NewInt(0), actualAmount)
+	sendAmount := types.NewUCompact(actualAmount)
+
+	var multiAddressRecipient types.MultiAddress
+	if m.Source == config.IdBSC {
+		multiAddressRecipient = types.NewMultiAddressFromAccountID(m.Payload[1].([]byte))
+	} else {
+		multiAddressRecipient, _ = types.NewMultiAddressFromHexAccountID(string(m.Payload[1].([]byte)))
+	}
+
 	depositNonce := types.U64(m.DepositNonce)
 
 	w.UpdateMetadata()
@@ -259,9 +277,11 @@ func (w *writer) createFungibleProposal(m msg.Message) (*proposal, error) {
 	call, err := types.NewCall(
 		w.meta,
 		method,
-		recipient,
-		amount,
+		multiAddressRecipient,
+		sendAmount,
+		m.ResourceId,
 	)
+
 	if err != nil {
 		return nil, err
 	}
@@ -284,7 +304,15 @@ func (w *writer) createFungibleProposal(m msg.Message) (*proposal, error) {
 
 func (w *writer) createNonFungibleProposal(m msg.Message) (*proposal, error) {
 	tokenId := types.NewU256(*big.NewInt(0).SetBytes(m.Payload[0].([]byte)))
-	recipient := types.NewAccountID(m.Payload[1].([]byte))
+
+	var multiAddressRecipient types.MultiAddress
+
+	if m.Source == config.IdBSC {
+		multiAddressRecipient = types.NewMultiAddressFromAccountID(m.Payload[1].([]byte))
+	} else {
+		multiAddressRecipient, _ = types.NewMultiAddressFromHexAccountID(string(m.Payload[1].([]byte)))
+	}
+
 	metadata := types.Bytes(m.Payload[2].([]byte))
 	depositNonce := types.U64(m.DepositNonce)
 
@@ -297,7 +325,7 @@ func (w *writer) createNonFungibleProposal(m msg.Message) (*proposal, error) {
 	call, err := types.NewCall(
 		w.meta,
 		method,
-		recipient,
+		multiAddressRecipient,
 		tokenId,
 		metadata,
 	)
@@ -352,5 +380,58 @@ func (w *writer) createGenericProposal(m msg.Message) (*proposal, error) {
 		resourceId:   types.NewBytes32(m.ResourceId),
 		method:       method,
 	}, nil
+}
+
+
+func (w *writer) resolveResourceId(id [32]byte) (string, error) {
+	var res []byte
+	exists, err := w.conn.queryStorage(utils.BridgeStoragePrefix, "Resources", id[:], nil, &res)
+	if err != nil {
+		return "", err
+	}
+	if !exists {
+		return "", fmt.Errorf("resource %x not found on chain", id)
+	}
+	return string(res), nil
+}
+
+// proposalValid asserts the state of a proposal. If the proposal is active and this relayer
+// has not voted, it will return true. Otherwise, it will return false with a reason string.
+func (w *writer) proposalValid(prop *proposal) (bool, string, error) {
+	var voteRes voteState
+	srcId, err := types.EncodeToBytes(prop.sourceId)
+	if err != nil {
+		return false, "", err
+	}
+	propBz, err := prop.encode()
+	if err != nil {
+		return false, "", err
+	}
+	exists, err := w.conn.queryStorage(utils.BridgeStoragePrefix, "Votes", srcId, propBz, &voteRes)
+	if err != nil {
+		return false, "", err
+	}
+
+	if !exists {
+		return true, "", nil
+	} else if voteRes.Status.IsActive {
+		if containsVote(voteRes.VotesFor, types.NewAccountID(w.conn.key.PublicKey)) ||
+			containsVote(voteRes.VotesAgainst, types.NewAccountID(w.conn.key.PublicKey)) {
+			return false, "already voted", nil
+		} else {
+			return true, "", nil
+		}
+	} else {
+		return false, "proposal complete", nil
+	}
+}
+
+func containsVote(votes []types.AccountID, voter types.AccountID) bool {
+	for _, v := range votes {
+		if bytes.Equal(v[:], voter[:]) {
+			return true
+		}
+	}
+	return false
 }
 

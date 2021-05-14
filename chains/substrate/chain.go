@@ -25,9 +25,7 @@ package substrate
 
 import (
 	"github.com/ChainSafe/log15"
-	"github.com/JFJun/go-substrate-crypto/ss58"
 	"github.com/Rjman-self/BBridge/chains/chain"
-	"github.com/Rjman-self/BBridge/config"
 	"github.com/centrifuge/go-substrate-rpc-client/v3/signature"
 	"github.com/centrifuge/go-substrate-rpc-client/v3/types"
 	"github.com/rjman-self/sherpax-utils/blockstore"
@@ -37,7 +35,6 @@ import (
 	metrics "github.com/rjman-self/sherpax-utils/metrics/types"
 	"github.com/rjman-self/sherpax-utils/msg"
 	"github.com/rjman-self/substrate-go/client"
-	"github.com/rjman-self/substrate-go/expand"
 )
 
 var _ core.Chain = &Chain{}
@@ -123,7 +120,7 @@ func InitializeChain(cfg *core.ChainConfig, logger log15.Logger, sysErr chan<- e
 
 	/// Initialize prefix
 	//InitializePrefixById(cfg.Id, cli)
-	InitializePrefixByName(cfg.Name, cli)
+	chain.InitializePrefixByName(cfg.Name, cli)
 
 	log15.Info("Initialize ChainInfo", "Prefix", cli.Prefix, "Name", cli.Name, "Id", cfg.Id)
 
@@ -141,49 +138,6 @@ func InitializeChain(cfg *core.ChainConfig, logger log15.Logger, sysErr chan<- e
 		writer:   w,
 		stop:     stop,
 	}, nil
-}
-
-func InitializePrefixByName(name string, cli *client.Client) {
-	prefixName := chain.GetChainPrefix(name)
-	switch prefixName {
-	case config.NameChainXAsset:
-		cli.SetPrefix(ss58.ChainXPrefix)
-		cli.Name = expand.ChainXbtc
-	case config.NameChainXPCX:
-		cli.SetPrefix(ss58.ChainXPrefix)
-		cli.Name = expand.ChainXpcx
-	case config.NamePolkadot:
-		cli.SetPrefix(ss58.PolkadotPrefix)
-	case config.NameKusama:
-		cli.SetPrefix(ss58.PolkadotPrefix)
-	default:
-		cli.SetPrefix(ss58.PolkadotPrefix)
-		cli.Name = "Why is there no name?"
-	}
-}
-
-func InitializePrefixById(id msg.ChainId, cli *client.Client) {
-	switch id {
-	case config.IdKusama:
-		cli.SetPrefix(ss58.PolkadotPrefix)
-	case config.IdChainXBTCV1:
-		cli.SetPrefix(ss58.ChainXPrefix)
-		cli.Name = expand.ChainXbtc
-	case config.IdChainXBTCV2:
-		cli.SetPrefix(ss58.ChainXPrefix)
-		cli.Name = expand.ChainXbtc
-	case config.IdChainXPCXV1:
-		cli.SetPrefix(ss58.ChainXPrefix)
-		cli.Name = expand.ChainXpcx
-	case config.IdChainXPCXV2:
-		cli.SetPrefix(ss58.ChainXPrefix)
-		cli.Name = expand.ChainXpcx
-	case config.IdPolkadot:
-		cli.SetPrefix(ss58.PolkadotPrefix)
-	default:
-		cli.SetPrefix(ss58.PolkadotPrefix)
-		cli.Name = "Why is there no name?"
-	}
 }
 
 func (c *Chain) Start() error {

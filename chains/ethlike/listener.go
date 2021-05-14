@@ -218,9 +218,9 @@ func (l *listener) getDepositEventsForBlock(latestBlock *big.Int) error {
 			return fmt.Errorf("failed to get handler from resource ID %x", rId)
 		}
 
-		if addr == l.cfg.erc20HandlerContract && isNative(m) {
+		if addr == l.cfg.erc20HandlerContract && isNative(destId) {
 			m, err = l.handleNativeDepositedEvent(destId, nonce)
-		} else if addr == l.cfg.erc20HandlerContract && !isNative(m) {
+		} else if addr == l.cfg.erc20HandlerContract && !isNative(destId) {
 			m, err = l.handleErc20DepositedEvent(destId, nonce)
 		} else if addr == l.cfg.erc721HandlerContract {
 			m, err = l.handleErc721DepositedEvent(destId, nonce)
@@ -257,8 +257,8 @@ func buildQuery(contract ethcommon.Address, sig utils.EventSig, startBlock *big.
 	return query
 }
 
-func isNative(m msg.Message) bool {
-	if m.Destination <= NativeLimit {
+func isNative(id msg.ChainId) bool {
+	if id <= NativeLimit {
 		return true
 	} else {
 		return false

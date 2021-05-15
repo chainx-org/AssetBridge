@@ -25,9 +25,8 @@ package substrate
 
 import (
 	"github.com/ChainSafe/log15"
-	"github.com/Rjman-self/BBridge/chains/chain"
+	"github.com/Rjman-self/BBridge/chains/chainset"
 	"github.com/centrifuge/go-substrate-rpc-client/v3/signature"
-	"github.com/centrifuge/go-substrate-rpc-client/v3/types"
 	"github.com/rjman-self/sherpax-utils/blockstore"
 	"github.com/rjman-self/sherpax-utils/core"
 	"github.com/rjman-self/sherpax-utils/crypto/sr25519"
@@ -103,8 +102,8 @@ func InitializeChain(cfg *core.ChainConfig, logger log15.Logger, sysErr chan<- e
 		log15.Info("Substrate Start block is specified", "StartBlock", startBlock)
 	}
 
-	/// Load listener and writer needed config
-	ue := parseUseExtended(cfg)
+	/// Load configuration required by listener and writer
+	useExtended := parseUseExtended(cfg)
 	otherRelayers := parseOtherRelayer(cfg)
 	multiSignAddress := parseMultiSignAddress(cfg)
 	total, currentRelayer, threshold := parseMultiSignConfig(cfg)
@@ -120,7 +119,7 @@ func InitializeChain(cfg *core.ChainConfig, logger log15.Logger, sysErr chan<- e
 
 	/// Initialize prefix
 	//InitializePrefixById(cfg.Id, cli)
-	chain.InitializePrefixByName(cfg.Name, cli)
+	chainset.InitializePrefixByName(cfg.Name, cli)
 
 	log15.Info("Initialize ChainInfo", "Prefix", cli.Prefix, "Name", cli.Name, "Id", cfg.Id)
 
@@ -128,8 +127,9 @@ func InitializeChain(cfg *core.ChainConfig, logger log15.Logger, sysErr chan<- e
 	relayer := NewRelayer((signature.KeyringPair)(*krp), otherRelayers, total, threshold, currentRelayer)
 
 	/// Setup listener & writer
-	l := NewListener(conn, cfg.Name, cfg.Id, startBlock, endBlock, lostAddress, logger, bs, stop, sysErr, m, types.AccountID(multiSignAddress), cli, resource, dest, relayer)
-	w := NewWriter(conn, l, logger, sysErr, m, ue, weight, relayer)
+	l := NewListener(conn, cfg.Name, cfg.Id, startBlock, endBlock, lostAddress,
+		logger, bs, stop, sysErr, m, multiSignAddress, cli, resource, dest, relayer)
+	w := NewWriter(conn, l, logger, sysErr, m, useExtended, weight, relayer)
 
 	return &Chain{
 		cfg:      cfg,

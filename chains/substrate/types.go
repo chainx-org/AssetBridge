@@ -6,22 +6,16 @@ package substrate
 import (
 	"bytes"
 	"fmt"
-	"github.com/Rjman-self/BBridge/config"
+	"github.com/Rjman-self/BBridge/chains/chainset"
 	utils "github.com/Rjman-self/BBridge/shared/substrate"
 	"github.com/centrifuge/go-substrate-rpc-client/v3/scale"
 	"github.com/centrifuge/go-substrate-rpc-client/v3/types"
 	"github.com/rjman-self/sherpax-utils/msg"
-	"github.com/rjman-self/substrate-go/expand/chainx/xevents"
 	"math/big"
 	"sync"
 	"time"
 )
 
-/// AssetId Type
-const (
-	XBTC			xevents.AssetId = 1
-	XBNB			xevents.AssetId = 2
-)
 const (
 	/// MultiSigTx Message
 	FindNewMultiSigTx 						string = "Find a MultiSign New extrinsic"
@@ -250,9 +244,9 @@ func (w *writer) createNativeTx(m msg.Message) {
 
 func (w *writer) createFungibleProposal(m msg.Message) (*proposal, error) {
 	amount := big.NewInt(0).SetBytes(m.Payload[0].([]byte))
-	/// Convert BBTC amount to XBTC amount
+
 	actualAmount := big.NewInt(0)
-	actualAmount.Div(amount, big.NewInt(oneXAsset))
+	actualAmount.Div(amount, big.NewInt(chainset.DiffXAsset))
 	if actualAmount.Cmp(big.NewInt(0)) == -1 {
 		return nil, fmt.Errorf("create fungible proposal error, neg amount")
 	}
@@ -260,7 +254,7 @@ func (w *writer) createFungibleProposal(m msg.Message) (*proposal, error) {
 	sendAmount := types.NewUCompact(actualAmount)
 
 	var multiAddressRecipient types.MultiAddress
-	if m.Source == config.IdBSC {
+	if m.Source == chainset.IdBSC {
 		multiAddressRecipient = types.NewMultiAddressFromAccountID(m.Payload[1].([]byte))
 	} else {
 		multiAddressRecipient, _ = types.NewMultiAddressFromHexAccountID(string(m.Payload[1].([]byte)))
@@ -307,7 +301,7 @@ func (w *writer) createNonFungibleProposal(m msg.Message) (*proposal, error) {
 
 	var multiAddressRecipient types.MultiAddress
 
-	if m.Source == config.IdBSC {
+	if m.Source == chainset.IdBSC {
 		multiAddressRecipient = types.NewMultiAddressFromAccountID(m.Payload[1].([]byte))
 	} else {
 		multiAddressRecipient, _ = types.NewMultiAddressFromHexAccountID(string(m.Payload[1].([]byte)))

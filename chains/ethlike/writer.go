@@ -55,7 +55,7 @@ func (w *writer) ResolveMessage(m msg.Message) bool {
 	w.log.Info("Attempting to resolve message", "type", m.Type, "src", m.Source, "dst", m.Destination, "nonce", m.DepositNonce, "rId", m.ResourceId.Hex(), "recipient", m.Payload[1])
 	switch m.Type {
 	case msg.NativeTransfer:
-		return w.createErc20Proposal(m)
+		return w.createNativeErc20Proposal(m)
 	case msg.FungibleTransfer:
 		return w.createErc20Proposal(m)
 	case msg.NonFungibleTransfer:

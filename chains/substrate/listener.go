@@ -7,8 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/JFJun/go-substrate-crypto/ss58"
-	"github.com/Rjman-self/BBridge/chains/chain"
-	"github.com/Rjman-self/BBridge/config"
+	"github.com/Rjman-self/BBridge/chains/chainset"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/rjman-self/substrate-go/expand"
 	"github.com/rjman-self/substrate-go/expand/base"
@@ -61,14 +60,6 @@ const InitCapacity = 100
 var BlockRetryInterval = time.Second * 5
 var BlockRetryLimit = 30
 var RedeemRetryLimit = 15
-var KSM int64 = 1e12
-var DOT int64 = 1e10
-var PCX int64 = 1e8
-var FixedKSMFee = KSM * 3 / 100	/// 0.03KSM
-var FixedDOTFee = DOT * 5 / 10	/// 0.5DOT
-var FixedPCXFee = PCX * 1 / 10	/// 0.1PCX
-var FeeRate int64 = 1000
-
 
 func NewListener(conn *Connection, name string, id msg.ChainId, startBlock uint64, endBlock uint64, lostAddress string, log log15.Logger, bs blockstore.Blockstorer,
 	stop <-chan int, sysErr chan<- error, m *metrics.ChainMetrics, multiSignAddress types.AccountID, cli *client.Client,
@@ -151,7 +142,7 @@ func (l *listener) reconnect() {
 			cli, err := client.New(l.conn.url)
 			if err == nil {
 				//InitializePrefixById(l.chainId, cli)
-				chain.InitializePrefixByName(l.name, cli)
+				chainset.InitializePrefixByName(l.name, cli)
 				l.client = *cli
 			}
 			ClientRetryLimit = BlockRetryLimit
@@ -393,7 +384,6 @@ func (l *listener) submitMessage(m msg.Message, err error) {
 	}
 }
 
-
 func (l *listener) dealBlockTx(resp *models.BlockResponse, currentBlock int64) {
 	for _, e := range resp.Extrinsic {
 		if e.Status == "fail" {
@@ -527,53 +517,41 @@ func (l *listener) getSendAmount(e *models.ExtrinsicResponse) (*big.Int, bool) {
 		fmt.Printf("parse transfer amount %v, amount.string %v\n", amount, amount.String())
 	}
 	sendAmount := big.NewInt(0)
-	actualAmount := big.NewInt(0)
-	if l.chainId == config.IdPolkadot {
-		/// DOT is 10 digits.
-		fixedFee := big.NewInt(FixedDOTFee)
-		additionalFee := big.NewInt(0).Div(amount, big.NewInt(FeeRate))
-		fee := big.NewInt(0).Add(fixedFee, additionalFee)
-
-		actualAmount.Sub(amount, fee)
-		if actualAmount.Cmp(big.NewInt(0)) == -1 {
-			l.log.Error("Charge a neg amount", "Amount", actualAmount, "chain", l.name)
+	if l.chainId == chainset.IdPolkadot {
+		sendAmount = chainset.CalculateHandleSubLikeFee(amount.Bytes(),
+			chainset.DiffDOT, chainset.FixedDOTFee, chainset.ExtraFeeRate)
+		if sendAmount.Cmp(big.NewInt(0)) == -1 {
+			l.log.Error("Charge a neg amount", "Amount", amount, "chain", l.name)
 			return nil, false
 		}
-		sendAmount.Mul(actualAmount, big.NewInt(oneDOT))
-		l.logCrossChainTx("DOT", "BDOT", amount, fee, actualAmount)
-	} else if l.chainId == config.IdKusama {
-		/// KSM is 12 digits.
-		fixedFee := big.NewInt(FixedKSMFee)
-		additionalFee := big.NewInt(0).Div(amount, big.NewInt(FeeRate))
-		fee := big.NewInt(0).Add(fixedFee, additionalFee)
-
-		actualAmount.Sub(amount, fee)
-		if actualAmount.Cmp(big.NewInt(0)) == -1 {
-			l.log.Error("Charge a neg amount", "Amount", actualAmount, "chain", l.name)
+		l.logCrossChainTx("DOT", "BDOT", amount, big.NewInt(0).Sub(sendAmount, amount), sendAmount)
+	} else if l.chainId == chainset.IdKusama {
+		sendAmount = chainset.CalculateHandleSubLikeFee(amount.Bytes(),
+			chainset.DiffKSM, chainset.FixedKSMFee, chainset.ExtraFeeRate)
+		if sendAmount.Cmp(big.NewInt(0)) == -1 {
+			l.log.Error("Charge a neg amount", "Amount", amount, "chain", l.name)
 			return nil, false
 		}
-		sendAmount.Mul(actualAmount, big.NewInt(oneKSM))
-		l.logCrossChainTx("KSM", "BKSM", amount, fee, actualAmount)
-	} else if (l.chainId == config.IdChainXBTCV1 || l.chainId == config.IdChainXBTCV2) && e.AssetId == XBTC {
-		/// XBTC is 8 digits.
-		sendAmount.Mul(amount, big.NewInt(oneXBTC))
-		l.logCrossChainTx("XBTC", "BBTC", amount, big.NewInt(0), amount)
-	} else if (l.chainId == config.IdChainXPCXV1 || l.chainId == config.IdChainXPCXV2) && e.AssetId == expand.PcxAssetId {
-		/// PCX is 8 digits.
-		fixedFee := big.NewInt(FixedPCXFee)
-		additionalFee := big.NewInt(0).Div(amount, big.NewInt(FeeRate))
-		fee := big.NewInt(0).Add(fixedFee, additionalFee)
-
-		actualAmount.Sub(amount, fee)
-		if actualAmount.Cmp(big.NewInt(0)) == -1 {
-			l.log.Error("Charge a neg amount", "Amount", actualAmount, "chain", l.name)
+		l.logCrossChainTx("KSM", "BKSM", amount, big.NewInt(0).Sub(sendAmount, amount), sendAmount)
+	} else if (l.chainId == chainset.IdChainXBTCV1 || l.chainId == chainset.IdChainXBTCV2) && e.AssetId == chainset.AssetXBTC {
+		sendAmount = chainset.CalculateHandleSubLikeFee(amount.Bytes(),
+			chainset.DiffXAsset, 0, 0)
+		if sendAmount.Cmp(big.NewInt(0)) == -1 {
+			l.log.Error("Charge a neg amount", "Amount", amount, "chain", l.name)
 			return nil, false
 		}
-		sendAmount.Mul(actualAmount, big.NewInt(onePCX))
-		l.logCrossChainTx("PCX", "BPCX", amount, fee, actualAmount)
+		l.logCrossChainTx("XBTC", "BBTC", amount, big.NewInt(0).Sub(sendAmount, amount), sendAmount)
+	} else if (l.chainId == chainset.IdChainXPCXV1 || l.chainId == chainset.IdChainXPCXV2) && e.AssetId == expand.PcxAssetId {
+		sendAmount = chainset.CalculateHandleSubLikeFee(amount.Bytes(),
+			chainset.DiffPCX, chainset.FixedPCXFee, chainset.ExtraFeeRate)
+		if sendAmount.Cmp(big.NewInt(0)) == -1 {
+			l.log.Error("Charge a neg amount", "Amount", amount, "chain", l.name)
+			return nil, false
+		}
+		l.logCrossChainTx("PCX", "BPCX", amount, big.NewInt(0).Sub(sendAmount, amount), sendAmount)
 	} else {
 		/// Other Chain
-		l.log.Error("chainId set wrong", "chainId", l.chainId)
+		l.log.Error("chainId set wrong, unimplemented", "chainId", l.chainId)
 		return nil, false
 	}
 	return sendAmount, true
@@ -618,23 +596,23 @@ func (l *listener) logCrossChainTx (tokenX string, tokenY string, amount *big.In
 func (l *listener) logReadyToSend(amount *big.Int, recipient []byte, e *models.ExtrinsicResponse) {
 	var token string
 	switch l.chainId {
-	case config.IdKusama:
+	case chainset.IdKusama:
 		token = "AKSM"
-	case config.IdPolkadot:
+	case chainset.IdPolkadot:
 		token = "PDOT"
-	case config.IdChainXBTCV1:
-		if e.AssetId == XBTC {
+	case chainset.IdChainXBTCV1:
+		if e.AssetId == chainset.AssetXBTC {
 			token = "ABTC"
 		}
-	case config.IdChainXBTCV2:
-		if e.AssetId == XBTC {
+	case chainset.IdChainXBTCV2:
+		if e.AssetId == chainset.AssetXBTC {
 			token = "ABTC"
 		}
-	case config.IdChainXPCXV1:
+	case chainset.IdChainXPCXV1:
 		if e.AssetId == expand.PcxAssetId {
 			token = "APCX"
 		}
-	case config.IdChainXPCXV2:
+	case chainset.IdChainXPCXV2:
 		if e.AssetId == expand.PcxAssetId {
 			token = "APCX"
 		}

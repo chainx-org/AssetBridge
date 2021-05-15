@@ -6,6 +6,7 @@ package ethlike
 import (
 	"context"
 	"errors"
+	"github.com/Rjman-self/BBridge/chains/chainset"
 	"github.com/Rjman-self/BBridge/chains/substrate"
 	"github.com/ethereum/go-ethereum/common"
 	"math/big"
@@ -90,10 +91,50 @@ func (w *writer) shouldVote(m msg.Message, dataHash [32]byte) bool {
 
 // createErc20Proposal creates an Erc20 proposal.
 // Returns true if the proposal is successfully created or is complete
+func (w *writer) createNativeErc20Proposal(m msg.Message) bool {
+	w.log.Info("Creating Native Erc20 proposal", "src", m.Source, "nonce", m.DepositNonce)
+
+	data := ConstructErc20ProposalData(m.Payload[0].([]byte), m.Payload[1].([]byte))
+	dataHash := utils.Hash(append(w.cfg.erc20HandlerContract.Bytes(), data...))
+
+	if !w.shouldVote(m, dataHash) {
+		if w.proposalIsPassed(m.Source, m.DepositNonce, dataHash) {
+			// Execute if proposal passed
+			w.executeProposal(m, data, dataHash)
+			return true
+		} else {
+			return false
+		}
+	}
+
+	// Capture latest block so when know where to watch from
+	latestBlock, err := w.conn.LatestBlock()
+	if err != nil {
+		w.log.Error("Unable to fetch latest block", "err", err)
+		return false
+	}
+
+	// Watch for execution event
+	go w.watchThenExecute(m, data, dataHash, latestBlock)
+
+	w.voteProposal(m, dataHash)
+
+	return true
+}
+
+// createErc20Proposal creates an Erc20 proposal.
+// Returns true if the proposal is successfully created or is complete
 func (w *writer) createErc20Proposal(m msg.Message) bool {
 	w.log.Info("Creating erc20 proposal", "src", m.Source, "nonce", m.DepositNonce)
 
-	data := ConstructErc20ProposalData(m.Payload[0].([]byte), m.Payload[1].([]byte))
+	sendAmount := chainset.CalculateHandleSubLikeFee(m.Payload[0].([]byte),
+		chainset.DiffXAsset, 0, 0)
+	if sendAmount.Uint64() == 0 {
+		log.Error("RedeemNegAmountError")
+		//return types.Call{}, nil, false, true, UnKnownError
+	}
+
+	data := ConstructErc20ProposalData(sendAmount.Bytes(), m.Payload[1].([]byte))
 	dataHash := utils.Hash(append(w.cfg.erc20HandlerContract.Bytes(), data...))
 
 	if !w.shouldVote(m, dataHash) {

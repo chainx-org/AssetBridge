@@ -7,6 +7,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/Rjman-self/BBridge/chains/chainset"
 	"math/big"
 	"time"
 
@@ -27,7 +28,6 @@ import (
 
 var BlockRetryInterval = time.Second * 5
 var BlockRetryLimit = 30
-var NativeLimit msg.ChainId = 100
 
 //var ErrFatalPolling = errors.New("listener block polling failed")
 
@@ -218,9 +218,9 @@ func (l *listener) getDepositEventsForBlock(latestBlock *big.Int) error {
 			return fmt.Errorf("failed to get handler from resource ID %x", rId)
 		}
 
-		if addr == l.cfg.erc20HandlerContract && isNative(destId) {
+		if addr == l.cfg.erc20HandlerContract && chainset.IsNativeTransfer(destId) {
 			m, err = l.handleNativeDepositedEvent(destId, nonce)
-		} else if addr == l.cfg.erc20HandlerContract && !isNative(destId) {
+		} else if addr == l.cfg.erc20HandlerContract && !chainset.IsNativeTransfer(destId) {
 			m, err = l.handleErc20DepositedEvent(destId, nonce)
 		} else if addr == l.cfg.erc721HandlerContract {
 			m, err = l.handleErc721DepositedEvent(destId, nonce)
@@ -230,7 +230,6 @@ func (l *listener) getDepositEventsForBlock(latestBlock *big.Int) error {
 			l.log.Error("event has unrecognized handler", "handler", addr.Hex())
 			return nil
 		}
-
 		if err != nil {
 			return err
 		}
@@ -255,14 +254,6 @@ func buildQuery(contract ethcommon.Address, sig utils.EventSig, startBlock *big.
 		},
 	}
 	return query
-}
-
-func isNative(id msg.ChainId) bool {
-	if id <= NativeLimit {
-		return true
-	} else {
-		return false
-	}
 }
 
 func (l *listener) logBlock(currentBlock uint64) {

@@ -6,7 +6,6 @@ package config
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/rjman-self/sherpax-utils/msg"
 	"os"
 	"path/filepath"
 
@@ -19,36 +18,6 @@ import (
 const DefaultConfigPath = "./config.json"
 const DefaultKeystorePath = "./keystore"
 const DefaultBlockTimeout = int64(180) // 3 minutes
-
-/// ChainId Type
-const (
-	/// EthLike
-	IdBSC       			msg.ChainId = 2
-	/// Sub
-	IdKusama    			msg.ChainId = 1
-	IdPolkadot  			msg.ChainId = 5
-	IdChainXBTCV1 			msg.ChainId = 3
-	IdChainXPCXV1 			msg.ChainId = 7
-	IdChainXBTCV2     		msg.ChainId = 9
-	IdChainXPCXV2 			msg.ChainId = 11
-)
-
-const (
-	NameUnimplemented		string = "unimplemented"
-	/// EthLike
-	NameBSC					string = "bsc"
-	NameETH					string = "eth"
-
-	/// SubBased
-	NameKusama				string = "kusama"
-	NamePolkadot			string = "polkadot"
-	NameChainXAsset			string = "chainxasset"
-	NameChainXPCX			string = "chainxpcx"
-	NameChainX				string = "chainx"
-	NameSherpaXAsset        string = "sherpaxasset"
-	NameSherpaXPCX          string = "sherpaxpcx"
-	NameSherpaX				string = "sherpax"
-)
 
 type Config struct {
 	Chains       []RawChainConfig `json:"chains"`

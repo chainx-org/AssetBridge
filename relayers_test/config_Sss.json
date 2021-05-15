@@ -14,7 +14,7 @@
       }
     },
     {
-      "name": "chainxbnb",
+      "name": "sherpax_bnb",
       "type": "substrate",
       "id": "101",
       "endpoint": "ws://localhost:9977",

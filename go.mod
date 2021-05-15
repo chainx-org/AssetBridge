@@ -14,7 +14,7 @@ require (
 	github.com/prometheus/common v0.15.0 // indirect
 	github.com/rjman-self/sherpax-utils v1.0.1
 	github.com/rjman-self/substrate-go v1.5.5
-	github.com/status-im/keycard-go v0.0.0-20190316090335-8537d3370df4
+	github.com/status-im/keycard-go v0.0.0-20190316090335-8537d3370df4 // indirect
 	github.com/stretchr/testify v1.7.0
 	github.com/urfave/cli/v2 v2.3.0
 	google.golang.org/protobuf v1.25.0 // indirect

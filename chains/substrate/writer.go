@@ -7,7 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/ChainSafe/log15"
-	"github.com/Rjman-self/BBridge/config"
+	"github.com/Rjman-self/BBridge/chains/chainset"
 	utils "github.com/Rjman-self/BBridge/shared/substrate"
 	gsrpc "github.com/centrifuge/go-substrate-rpc-client/v3"
 	"github.com/centrifuge/go-substrate-rpc-client/v3/types"
@@ -27,14 +27,6 @@ var TerminatedError = errors.New("terminated")
 const genesisBlock = 0
 const RoundInterval = time.Second * 6
 const xParameter uint8 = 255
-
-const(
-	oneKSM = 1000000      /// KSM is 12 digits
-	oneDOT = 100000000    /// DOT is 10 digits
-	oneXBTC = 10000000000 /// XBTC is 8 digits
-	onePCX = 10000000000 /// XBTC is 8 digits
-	oneXAsset = 10000000000
-)
 
 type writer struct {
 	meta       *types.Metadata
@@ -189,7 +181,7 @@ func (w *writer) redeemTx(m msg.Message) (bool, MultiSignTx) {
 			for _, ms := range w.listener.msTxAsMulti {
 				// Validate parameter
 				var destAddress string
-				if m.Source == config.IdBSC {
+				if m.Source == chainset.IdBSC {
 					dest := types.NewAddressFromAccountID(m.Payload[1].([]byte)).AsAccountID
 					destAddress = utils2.BytesToHex(dest[:])
 				} else {
@@ -252,33 +244,36 @@ func (w *writer) redeemTx(m msg.Message) (bool, MultiSignTx) {
 
 func (w *writer) getCall(m msg.Message) (types.Call, *big.Int, bool, bool, MultiSignTx){
 	var c types.Call
-	actualAmount := big.NewInt(0)
-	amount := big.NewInt(0).SetBytes(m.Payload[0].([]byte))
+	sendAmount := big.NewInt(0)
+	multiAddressRecipient, addressRecipient := chainset.GetSubLikeRecipient(m)
 
-	var multiAddressRecipient types.MultiAddress
-	var addressRecipient types.Address
-
-	if m.Source == config.IdBSC {
-		multiAddressRecipient = types.NewMultiAddressFromAccountID(m.Payload[1].([]byte))
-		addressRecipient = types.NewAddressFromAccountID(m.Payload[1].([]byte))
-	} else {
-		multiAddressRecipient, _ = types.NewMultiAddressFromHexAccountID(string(m.Payload[1].([]byte)))
-		addressRecipient, _ = types.NewAddressFromHexAccountID(string(m.Payload[1].([]byte)))
-	}
 	// Get parameters of Call
-	if m.Destination == config.IdPolkadot {
-		receiveAmount := big.NewInt(0).Div(amount, big.NewInt(oneDOT))
-		/// calculate fee and actualAmount
-		fixedFee := big.NewInt(FixedDOTFee)
-		additionalFee := big.NewInt(0).Div(receiveAmount, big.NewInt(FeeRate))
-		fee := big.NewInt(0).Add(fixedFee, additionalFee)
-		actualAmount.Sub(receiveAmount, fee)
-		w.logCrossChainTx("BDOT", "DOT", receiveAmount, fee, actualAmount)
-		if actualAmount.Cmp(big.NewInt(0)) == -1 {
-			w.log.Error(RedeemNegAmountError, "Amount", actualAmount)
+	if m.Destination == chainset.IdPolkadot {
+		sendAmount = chainset.CalculateHandleEthLikeFee(m.Payload[0].([]byte),
+			chainset.DiffDOT, chainset.FixedDOTFee, chainset.ExtraFeeRate)
+		if sendAmount.Uint64() == 0 {
+			w.log.Error(RedeemNegAmountError, "Amount", sendAmount)
 			return types.Call{}, nil, false, true, UnKnownError
 		}
-		sendAmount := types.NewUCompact(actualAmount)
+
+		var err error
+		c, err = types.NewCall(
+			w.meta,
+			string(utils.BalancesTransferKeepAliveMethod),
+			multiAddressRecipient,
+			types.NewUCompact(sendAmount),
+		)
+		if err != nil {
+			w.log.Error(NewBalancesTransferKeepAliveCallError, "Error", err)
+			return types.Call{}, nil, false, true, UnKnownError
+		}
+	} else if m.Destination == chainset.IdKusama {
+		sendAmount = chainset.CalculateHandleEthLikeFee(m.Payload[0].([]byte),
+			chainset.DiffKSM, chainset.FixedKSMFee, chainset.ExtraFeeRate)
+		if sendAmount.Uint64() == 0 {
+			w.log.Error(RedeemNegAmountError, "Amount", sendAmount)
+			return types.Call{}, nil, false, true, UnKnownError
+		}
 
 		/// Create a transfer_keep_alive call
 		var err error
@@ -286,142 +281,86 @@ func (w *writer) getCall(m msg.Message) (types.Call, *big.Int, bool, bool, Multi
 			w.meta,
 			string(utils.BalancesTransferKeepAliveMethod),
 			multiAddressRecipient,
-			sendAmount,
+			types.NewUCompact(sendAmount),
 		)
 		if err != nil {
 			w.log.Error(NewBalancesTransferKeepAliveCallError, "Error", err)
 			return types.Call{}, nil, false, true, UnKnownError
 		}
-	} else if m.Destination == config.IdKusama {
-		// Convert BKSM amount to KSM amount
-		receiveAmount := big.NewInt(0).Div(amount, big.NewInt(oneKSM))
-
-		/// calculate fee and actualAmount
-		fixedFee := big.NewInt(FixedKSMFee)
-		additionalFee := big.NewInt(0).Div(receiveAmount, big.NewInt(FeeRate))
-		fee := big.NewInt(0).Add(fixedFee, additionalFee)
-		actualAmount.Sub(receiveAmount, fee)
-
-		w.logCrossChainTx("BKSM", "KSM", receiveAmount, fee, actualAmount)
-		if actualAmount.Cmp(big.NewInt(0)) == -1 {
-			w.logErr(RedeemNegAmountError, nil)
+	} else if m.Destination == chainset.IdChainXBTCV1 {
+		sendAmount = chainset.CalculateHandleEthLikeFee(m.Payload[0].([]byte),
+			chainset.DiffXBTC, 0, 0)
+		if sendAmount.Uint64() == 0 {
+			w.log.Error(RedeemNegAmountError)
 			return types.Call{}, nil, false, true, UnKnownError
 		}
-		sendAmount := types.NewUCompact(actualAmount)
-
-		/// Create a transfer_keep_alive call
-		var err error
-		c, err = types.NewCall(
-			w.meta,
-			string(utils.BalancesTransferKeepAliveMethod),
-			multiAddressRecipient,
-			sendAmount,
-		)
-		if err != nil {
-			w.log.Error(NewBalancesTransferKeepAliveCallError, "Error", err)
-			return types.Call{}, nil, false, true, UnKnownError
-		}
-	} else if m.Destination == config.IdChainXBTCV1 {
-		/// Convert BBTC amount to XBTC amount
-		actualAmount.Div(amount, big.NewInt(oneXBTC))
-		if actualAmount.Cmp(big.NewInt(0)) == -1 {
-			w.logErr(RedeemNegAmountError, nil)
-			return types.Call{}, nil, false, true, UnKnownError
-		}
-
-		w.logCrossChainTx("BBTC", "XBTC", actualAmount, big.NewInt(0), actualAmount)
-		sendAmount := types.NewUCompact(actualAmount)
 
 		// Create a XAssets.Transfer call
-		assetId := types.NewUCompactFromUInt(uint64(XBTC))
+		assetId := types.NewUCompactFromUInt(uint64(chainset.AssetXBTC))
 		var err error
 
 		c, err = types.NewCall(
 			w.meta,
 			string(utils.XAssetsTransferMethod),
 			xParameter,
-			/// ChainX XBTC2.0 Address
-			//multiAddressRecipient,
-			/// ChainX XBTC1.0 Address
 			addressRecipient,
 			assetId,
-			sendAmount,
+			types.NewUCompact(sendAmount),
 		)
 		if err != nil {
 			w.log.Error(NewXAssetsTransferCallError, "Error", err)
 			return types.Call{}, nil, false, true, UnKnownError
 		}
-	} else if m.Destination == config.IdChainXBTCV2 {
-		/// Convert BBTC amount to XBTC amount
-		actualAmount.Div(amount, big.NewInt(oneXBTC))
-		if actualAmount.Cmp(big.NewInt(0)) == -1 {
-			w.logErr(RedeemNegAmountError, nil)
+	} else if m.Destination == chainset.IdChainXBTCV2 {
+		sendAmount = chainset.CalculateHandleEthLikeFee(m.Payload[0].([]byte),
+			chainset.DiffXBTC, 0, 0)
+		if sendAmount.Uint64() == 0 {
+			w.log.Error(RedeemNegAmountError)
 			return types.Call{}, nil, false, true, UnKnownError
 		}
 
-		w.logCrossChainTx("BBTC", "XBTC", actualAmount, big.NewInt(0), actualAmount)
-		sendAmount := types.NewUCompact(actualAmount)
-
 		// Create a XAssets.Transfer call
-		assetId := types.NewUCompactFromUInt(uint64(XBTC))
+		assetId := types.NewUCompactFromUInt(uint64(chainset.AssetXBTC))
 		var err error
 
 		c, err = types.NewCall(
 			w.meta,
 			string(utils.XAssetsTransferMethod),
-			/// ChainX XBTC2.0 Address
-			//multiAddressRecipient,
-			/// ChainX XBTC1.0 Address
 			multiAddressRecipient,
 			assetId,
-			sendAmount,
+			types.NewUCompact(sendAmount),
 		)
 		if err != nil {
 			w.log.Error(NewXAssetsTransferCallError, "Error", err)
 			return types.Call{}, nil, false, true, UnKnownError
 		}
-	} else if m.Destination == config.IdChainXPCXV1 {
-		/// Convert BPCX amount to PCX amount
-		receiveAmount := big.NewInt(0).Div(amount, big.NewInt(onePCX))
-		/// calculate fee and actualAmount
-		fixedFee := big.NewInt(FixedPCXFee)
-		additionalFee := big.NewInt(0).Div(receiveAmount, big.NewInt(FeeRate))
-		fee := big.NewInt(0).Add(fixedFee, additionalFee)
-		actualAmount.Sub(receiveAmount, fee)
-		w.logCrossChainTx("BPCX", "PCX", receiveAmount, fee, actualAmount)
-		if actualAmount.Cmp(big.NewInt(0)) == -1 {
-			w.log.Error(RedeemNegAmountError, "Amount", actualAmount)
+	} else if m.Destination == chainset.IdChainXPCXV1 {
+		sendAmount = chainset.CalculateHandleEthLikeFee(m.Payload[0].([]byte),
+			chainset.DiffPCX, chainset.FixedPCXFee, chainset.ExtraFeeRate)
+		if sendAmount.Uint64() == 0 {
+			w.log.Error(RedeemNegAmountError)
 			return types.Call{}, nil, false, true, UnKnownError
 		}
-		sendAmount := types.NewUCompact(actualAmount)
 
-		// Create a XAssets.Transfer call
 		var err error
 		c, err = types.NewCall(
 			w.meta,
 			string(utils.BalancesTransferKeepAliveMethod),
 			xParameter,
 			addressRecipient,
-			sendAmount,
+			types.NewUCompact(sendAmount),
 		)
 		if err != nil {
 			w.log.Error(NewBalancesTransferKeepAliveCallError, "Error", err)
 			return types.Call{}, nil, false, true, UnKnownError
 		}
-	} else if m.Destination == config.IdChainXPCXV2 || m.Destination == 101 {
-		/// Convert BPCX amount to PCX amount
-		receiveAmount := big.NewInt(0).Div(amount, big.NewInt(onePCX))
-		/// calculate fee and actualAmount
-		fixedFee := big.NewInt(FixedPCXFee)
-		additionalFee := big.NewInt(0).Div(receiveAmount, big.NewInt(FeeRate))
-		fee := big.NewInt(0).Add(fixedFee, additionalFee)
-		actualAmount.Sub(receiveAmount, fee)
-		w.logCrossChainTx("BPCX", "PCX", receiveAmount, fee, actualAmount)
-		if actualAmount.Cmp(big.NewInt(0)) == -1 {
-			w.log.Error(RedeemNegAmountError, "Amount", actualAmount)
+	} else if m.Destination == chainset.IdChainXPCXV2 || m.Destination == 101 {
+		sendAmount = chainset.CalculateHandleEthLikeFee(m.Payload[0].([]byte),
+			chainset.DiffPCX, chainset.FixedPCXFee, chainset.ExtraFeeRate)
+		if sendAmount.Uint64() == 0 {
+			w.log.Error(RedeemNegAmountError)
 			return types.Call{}, nil, false, true, UnKnownError
 		}
-		sendAmount := types.NewUCompact(actualAmount)
 
 		// Create a XAssets.Transfer call
 		var err error
@@ -429,7 +368,7 @@ func (w *writer) getCall(m msg.Message) (types.Call, *big.Int, bool, bool, Multi
 			w.meta,
 			string(utils.BalancesTransferKeepAliveMethod),
 			multiAddressRecipient,
-			sendAmount,
+			types.NewUCompact(sendAmount),
 		)
 		if err != nil {
 			w.log.Error(NewBalancesTransferKeepAliveCallError, "Error", err)
@@ -440,14 +379,14 @@ func (w *writer) getCall(m msg.Message) (types.Call, *big.Int, bool, bool, Multi
 		w.log.Error("chainId set wrong", "ChainId", w.listener.chainId)
 		return types.Call{}, nil, false, true, UnKnownError
 	}
-	return c, actualAmount, true, false, NotExecuted
+	return c, sendAmount, true, false, NotExecuted
 }
 
 func (w *writer) checkRedeem(m msg.Message, actualAmount *big.Int) (bool, MultiSignTx) {
 	for _, ms := range w.listener.msTxAsMulti {
 		// Validate parameter
 		var destAddress string
-		if m.Source == config.IdBSC {
+		if m.Source == chainset.IdBSC {
 			dest := types.NewAddressFromAccountID(m.Payload[1].([]byte)).AsAccountID
 			destAddress = utils2.BytesToHex(dest[:])
 		} else {
@@ -530,7 +469,7 @@ func (w *writer) submitTx(c types.Call) {
 		ext := types.NewExtrinsic(c)
 
 		/// ChainX V1 still use `Address` type
-		if w.listener.chainId == config.IdChainXPCXV1 || w.listener.chainId == config.IdChainXBTCV1 {
+		if w.listener.chainId == chainset.IdChainXPCXV1 || w.listener.chainId == chainset.IdChainXBTCV1 {
 			err = ext.Sign(w.relayer.kr, o)
 		} else {
 			err = ext.Sign(w.relayer.kr, o)
@@ -607,7 +546,7 @@ func (w *writer) UpdateMetadata() {
 
 func (w *writer) getApi() (*gsrpc.SubstrateAPI, error) {
 	chainId := w.listener.chainId
-	if chainId == config.IdChainXPCXV1 || chainId == config.IdChainXPCXV2 || chainId == config.IdChainXBTCV1 || chainId == config.IdChainXBTCV2 {
+	if chainId == chainset.IdChainXPCXV1 || chainId == chainset.IdChainXPCXV2 || chainId == chainset.IdChainXBTCV1 || chainId == chainset.IdChainXBTCV2 {
 		api, err := gsrpc.NewSubstrateAPI(w.conn.url)
 		if err != nil {
 			w.logErr(NewApiError, err)

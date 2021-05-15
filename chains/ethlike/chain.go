@@ -25,7 +25,7 @@ import (
 	"github.com/ChainSafe/log15"
 	bridge "github.com/Rjman-self/BBridge/bindings/Bridge"
 	erc20Handler "github.com/Rjman-self/BBridge/bindings/ERC20Handler"
-	"github.com/Rjman-self/BBridge/config"
+	"github.com/Rjman-self/BBridge/chains/chainset"
 	connection "github.com/Rjman-self/BBridge/connections/bsc"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
@@ -127,7 +127,6 @@ func InitializeChain(chainCfg *core.ChainConfig, logger log15.Logger, sysErr cha
 		return nil, fmt.Errorf("chainId (%d) and configuration chainId (%d) do not match", chainId, chainCfg.Id)
 	}
 
-
 	erc20HandlerContract, err := erc20Handler.NewERC20Handler(cfg.erc20HandlerContract, conn.Client())
 	if err != nil {
 		return nil, err
@@ -141,14 +140,14 @@ func InitializeChain(chainCfg *core.ChainConfig, logger log15.Logger, sysErr cha
 		}
 		cfg.startBlock = curr
 		switch cfg.id {
-		case config.IdBSC:
+		case chainset.IdBSC:
 			log15.Info(" Start block is newest", "StartBlock", cfg.startBlock)
 		default:
 			log15.Info("Start block is newest", "StartBlock", cfg.startBlock)
 		}
 	} else {
 		switch cfg.id {
-		case config.IdBSC:
+		case chainset.IdBSC:
 			log15.Info("BSC Start block is specified", "StartBlock", cfg.startBlock)
 		default:
 			log15.Info("Start block is specified", "StartBlock", cfg.startBlock)

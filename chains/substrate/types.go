@@ -17,13 +17,13 @@ import (
 )
 
 const (
-	/// MultiSigTx Message
+
 	FindNewMultiSigTx 						string = "Find a MultiSign New extrinsic"
 	FindApproveMultiSigTx 					string = "Find a MultiSign Approve extrinsic"
 	FindExecutedMultiSigTx 					string = "Find a MultiSign Executed extrinsic"
 	FindBatchMultiSigTx 					string = "Find a MultiSign Batch Extrinsic"
 	FindFailedBatchMultiSigTx 				string = "But Batch Extrinsic Failed"
-	/// Other
+
 	StartATx 								string = "Start a redeemTx..."
 	MeetARepeatTx 							string = "Meet a Repeat Transaction"
 	FindLostMultiSigTx 						string = "Find a Lost BatchTx"
@@ -37,7 +37,7 @@ const (
 	FailedToWriteToBlockStore 				string = "Failed to write to blockStore"
 	RelayerFinishTheTx 						string = "Relayer Finish the Tx"
 	LineLog           			 			string = "------------------------------------"
-	/// Error
+
 	MaybeAProblem                         	string = "There may be a problem with the deal"
 	RedeemTxTryTooManyTimes               	string = "Redeem Tx failed, try too many times"
 	MultiSigExtrinsicError                	string = "MultiSig extrinsic err! UnknownError(amount、chainId...)"
@@ -82,6 +82,19 @@ type Round struct {
 	blockHeight *big.Int
 	blockRound  *big.Int
 }
+
+type Msg struct {
+	m 	msg.Message
+	ok 	bool
+}
+
+func NewMsg(msg msg.Message) *Msg {
+	return &Msg{
+		m: msg,
+		ok: false,
+	}
+}
+
 
 type Dest struct {
 	DepositNonce msg.Nonce
@@ -174,6 +187,8 @@ func (w *writer) createNativeTx(m msg.Message) {
 			w.log.Info(LineLog, "DepositNonce", m.DepositNonce)
 		}()
 		retryTimes := RedeemRetryLimit
+		message := NewMsg(m)
+
 		for {
 			retryTimes--
 			// No more retries, stop RedeemTx
@@ -184,7 +199,7 @@ func (w *writer) createNativeTx(m msg.Message) {
 				w.logErr(RedeemTxTryTooManyTimes, nil)
 				break
 			}
-			isFinished, currentTx := w.redeemTx(m)
+			isFinished, currentTx := w.redeemTx(message)
 			if isFinished {
 				var mutex sync.Mutex
 				mutex.Lock()
@@ -213,6 +228,7 @@ func (w *writer) createNativeTx(m msg.Message) {
 
 				/// If currentTx is voted
 				if currentTx == YesVoted {
+					message.ok = true
 					time.Sleep(RoundInterval * time.Duration(w.relayer.totalRelayers) / 2)
 				}
 				/// Executed or UnKnownError
@@ -243,36 +259,29 @@ func (w *writer) createNativeTx(m msg.Message) {
 }
 
 func (w *writer) createFungibleProposal(m msg.Message) (*proposal, error) {
-	amount := big.NewInt(0).SetBytes(m.Payload[0].([]byte))
-
-	actualAmount := big.NewInt(0)
-	actualAmount.Div(amount, big.NewInt(chainset.DiffXAsset))
-	if actualAmount.Cmp(big.NewInt(0)) == -1 {
+	sendAmount, err := w.bridgeCore.GetSendToSubChainAmount(m.Payload[0].([]byte), chainset.XAssetId)
+	if err != nil {
 		return nil, fmt.Errorf("create fungible proposal error, neg amount")
 	}
-	w.logCrossChainTx("BNB", "XBNB", actualAmount, big.NewInt(0), actualAmount)
-	sendAmount := types.NewUCompact(actualAmount)
 
-	var multiAddressRecipient types.MultiAddress
-	if m.Source == chainset.IdBSC {
-		multiAddressRecipient = types.NewMultiAddressFromAccountID(m.Payload[1].([]byte))
-	} else {
-		multiAddressRecipient, _ = types.NewMultiAddressFromHexAccountID(string(m.Payload[1].([]byte)))
-	}
-
+	recipient := w.bridgeCore.GetSubChainRecipient(m)
 	depositNonce := types.U64(m.DepositNonce)
 
-	w.UpdateMetadata()
+	err = w.conn.updateMetatdata()
+	if err != nil {
+		return nil, err
+	}
+
 	method, err := w.resolveResourceId(m.ResourceId)
 	if err != nil {
 		return nil, err
 	}
 
 	call, err := types.NewCall(
-		w.meta,
+		&w.conn.meta,
 		method,
-		multiAddressRecipient,
-		sendAmount,
+		recipient,
+		types.NewUCompact(sendAmount),
 		m.ResourceId,
 	)
 
@@ -298,28 +307,24 @@ func (w *writer) createFungibleProposal(m msg.Message) (*proposal, error) {
 
 func (w *writer) createNonFungibleProposal(m msg.Message) (*proposal, error) {
 	tokenId := types.NewU256(*big.NewInt(0).SetBytes(m.Payload[0].([]byte)))
-
-	var multiAddressRecipient types.MultiAddress
-
-	if m.Source == chainset.IdBSC {
-		multiAddressRecipient = types.NewMultiAddressFromAccountID(m.Payload[1].([]byte))
-	} else {
-		multiAddressRecipient, _ = types.NewMultiAddressFromHexAccountID(string(m.Payload[1].([]byte)))
-	}
-
+	recipient := w.bridgeCore.GetSubChainRecipient(m)
 	metadata := types.Bytes(m.Payload[2].([]byte))
 	depositNonce := types.U64(m.DepositNonce)
 
-	w.UpdateMetadata()
+	err := w.conn.updateMetatdata()
+	if err != nil {
+		return nil, err
+	}
+
 	method, err := w.resolveResourceId(m.ResourceId)
 	if err != nil {
 		return nil, err
 	}
 
 	call, err := types.NewCall(
-		w.meta,
+		&w.conn.meta,
 		method,
-		multiAddressRecipient,
+		recipient,
 		tokenId,
 		metadata,
 	)
@@ -344,14 +349,18 @@ func (w *writer) createNonFungibleProposal(m msg.Message) (*proposal, error) {
 }
 
 func (w *writer) createGenericProposal(m msg.Message) (*proposal, error) {
-	w.UpdateMetadata()
+	err := w.conn.updateMetatdata()
+	if err != nil {
+		return nil, err
+	}
+
 	method, err := w.resolveResourceId(m.ResourceId)
 	if err != nil {
 		return nil, err
 	}
 
 	call, err := types.NewCall(
-		w.meta,
+		&w.conn.meta,
 		method,
 		types.NewHash(m.Payload[0].([]byte)),
 	)
@@ -375,7 +384,6 @@ func (w *writer) createGenericProposal(m msg.Message) (*proposal, error) {
 		method:       method,
 	}, nil
 }
-
 
 func (w *writer) resolveResourceId(id [32]byte) (string, error) {
 	var res []byte

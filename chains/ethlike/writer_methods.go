@@ -127,11 +127,10 @@ func (w *writer) createNativeErc20Proposal(m msg.Message) bool {
 func (w *writer) createErc20Proposal(m msg.Message) bool {
 	w.log.Info("Creating erc20 proposal", "src", m.Source, "nonce", m.DepositNonce)
 
-	sendAmount := chainset.CalculateHandleSubLikeFee(m.Payload[0].([]byte),
-		chainset.DiffXAsset, 0, 0)
-	if sendAmount.Uint64() == 0 {
+	sendAmount, err := w.bridgeCore.GetSendToEthChainAmount(m.Payload[0].([]byte), chainset.XAssetId)
+	if err != nil {
 		log.Error("RedeemNegAmountError")
-		//return types.Call{}, nil, false, true, UnKnownError
+		return false
 	}
 
 	data := ConstructErc20ProposalData(sendAmount.Bytes(), m.Payload[1].([]byte))

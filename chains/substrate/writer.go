@@ -154,8 +154,8 @@ func (w *writer) checkRepeat(m msg.Message) bool {
 	return true
 }
 
-func (w *writer) redeemTx(m msg.Message) (bool, MultiSignTx) {
-	w.UpdateMetadata()
+func (w *writer) redeemTx(message *Msg) (bool, MultiSignTx) { w.UpdateMetadata()
+	m := message.m
 	types.SetSerDeOptions(types.SerDeOptions{NoPalletIndices: true})
 
 	defer func() {
@@ -173,7 +173,7 @@ func (w *writer) redeemTx(m msg.Message) (bool, MultiSignTx) {
 		processRound := (w.relayer.currentRelayer + uint64(m.DepositNonce)) % w.relayer.totalRelayers
 		round, height := w.getRound()
 		blockRound := round.blockRound.Uint64()
-		if blockRound == processRound {
+		if blockRound == processRound && !message.ok {
 			fmt.Printf("Relayer#%v solve %v in block#%v\n", w.relayer.currentRelayer, round, height)
 			// Try to find a exist MultiSignTx
 			var maybeTimePoint interface{}
@@ -245,90 +245,43 @@ func (w *writer) redeemTx(m msg.Message) (bool, MultiSignTx) {
 }
 
 func (w *writer) getCall(m msg.Message) (types.Call, *big.Int, bool, bool, MultiSignTx){
+	sendAmount, err := w.bridgeCore.GetSendToSubChainAmount(m.Payload[0].([]byte), 0)
+	if err != nil {
+		return types.Call{}, nil, false, true, UnKnownError
+	}
+
 	var c types.Call
-	sendAmount := big.NewInt(0)
-	multiAddressRecipient, addressRecipient := chainset.GetSubLikeRecipient(m)
+	recipient := w.bridgeCore.GetSubChainRecipient(m)
 
 	// Get parameters of Call
-	if m.Destination == chainset.IdPolkadot {
-		sendAmount = chainset.CalculateHandleEthLikeFee(m.Payload[0].([]byte),
-			chainset.DiffDOT, chainset.FixedDOTFee, chainset.ExtraFeeRate)
-		if sendAmount.Uint64() == 0 {
-			w.log.Error(RedeemNegAmountError, "Amount", sendAmount)
-			return types.Call{}, nil, false, true, UnKnownError
-		}
-
-		var err error
-		c, err = types.NewCall(
-			w.meta,
-			string(utils.BalancesTransferKeepAliveMethod),
-			multiAddressRecipient,
-			types.NewUCompact(sendAmount),
-		)
+	if m.Destination == chainset.IdPolkadot || m.Destination == chainset.IdKusama || m.Destination == chainset.IdChainXPCXV2{
+		c, err = w.bridgeCore.MakeBalanceTransferCall(m, &w.conn.meta, chainset.OriginAsset)
 		if err != nil {
-			w.log.Error(NewBalancesTransferKeepAliveCallError, "Error", err)
-			return types.Call{}, nil, false, true, UnKnownError
-		}
-	} else if m.Destination == chainset.IdKusama {
-		sendAmount = chainset.CalculateHandleEthLikeFee(m.Payload[0].([]byte),
-			chainset.DiffKSM, chainset.FixedKSMFee, chainset.ExtraFeeRate)
-		if sendAmount.Uint64() == 0 {
-			w.log.Error(RedeemNegAmountError, "Amount", sendAmount)
-			return types.Call{}, nil, false, true, UnKnownError
-		}
-
-		/// Create a transfer_keep_alive call
-		var err error
-		c, err = types.NewCall(
-			w.meta,
-			string(utils.BalancesTransferKeepAliveMethod),
-			multiAddressRecipient,
-			types.NewUCompact(sendAmount),
-		)
-		if err != nil {
-			w.log.Error(NewBalancesTransferKeepAliveCallError, "Error", err)
 			return types.Call{}, nil, false, true, UnKnownError
 		}
 	} else if m.Destination == chainset.IdChainXBTCV1 {
-		sendAmount = chainset.CalculateHandleEthLikeFee(m.Payload[0].([]byte),
-			chainset.DiffXBTC, 0, 0)
-		if sendAmount.Uint64() == 0 {
-			w.log.Error(RedeemNegAmountError)
-			return types.Call{}, nil, false, true, UnKnownError
-		}
-
 		// Create a XAssets.Transfer call
 		assetId := types.NewUCompactFromUInt(uint64(chainset.AssetXBTC))
-		var err error
-
 		c, err = types.NewCall(
 			w.meta,
 			string(utils.XAssetsTransferMethod),
 			xParameter,
-			addressRecipient,
+			recipient,
 			assetId,
 			types.NewUCompact(sendAmount),
 		)
 		if err != nil {
 			w.log.Error(NewXAssetsTransferCallError, "Error", err)
-			return types.Call{}, nil, false, true, UnKnownError
+
 		}
 	} else if m.Destination == chainset.IdChainXBTCV2 {
-		sendAmount = chainset.CalculateHandleEthLikeFee(m.Payload[0].([]byte),
-			chainset.DiffXBTC, 0, 0)
-		if sendAmount.Uint64() == 0 {
-			w.log.Error(RedeemNegAmountError)
-			return types.Call{}, nil, false, true, UnKnownError
-		}
-
 		// Create a XAssets.Transfer call
 		assetId := types.NewUCompactFromUInt(uint64(chainset.AssetXBTC))
-		var err error
 
 		c, err = types.NewCall(
 			w.meta,
 			string(utils.XAssetsTransferMethod),
-			multiAddressRecipient,
+			recipient,
 			assetId,
 			types.NewUCompact(sendAmount),
 		)
@@ -337,39 +290,11 @@ func (w *writer) getCall(m msg.Message) (types.Call, *big.Int, bool, bool, Multi
 			return types.Call{}, nil, false, true, UnKnownError
 		}
 	} else if m.Destination == chainset.IdChainXPCXV1 {
-		sendAmount = chainset.CalculateHandleEthLikeFee(m.Payload[0].([]byte),
-			chainset.DiffPCX, chainset.FixedPCXFee, chainset.ExtraFeeRate)
-		if sendAmount.Uint64() == 0 {
-			w.log.Error(RedeemNegAmountError)
-			return types.Call{}, nil, false, true, UnKnownError
-		}
-
-		var err error
 		c, err = types.NewCall(
 			w.meta,
 			string(utils.BalancesTransferKeepAliveMethod),
 			xParameter,
-			addressRecipient,
-			types.NewUCompact(sendAmount),
-		)
-		if err != nil {
-			w.log.Error(NewBalancesTransferKeepAliveCallError, "Error", err)
-			return types.Call{}, nil, false, true, UnKnownError
-		}
-	} else if m.Destination == chainset.IdChainXPCXV2 || m.Destination == 101 {
-		sendAmount = chainset.CalculateHandleEthLikeFee(m.Payload[0].([]byte),
-			chainset.DiffPCX, chainset.FixedPCXFee, chainset.ExtraFeeRate)
-		if sendAmount.Uint64() == 0 {
-			w.log.Error(RedeemNegAmountError)
-			return types.Call{}, nil, false, true, UnKnownError
-		}
-
-		// Create a XAssets.Transfer call
-		var err error
-		c, err = types.NewCall(
-			w.meta,
-			string(utils.BalancesTransferKeepAliveMethod),
-			multiAddressRecipient,
+			recipient,
 			types.NewUCompact(sendAmount),
 		)
 		if err != nil {

@@ -2,16 +2,17 @@ package chainset
 
 import (
 	"github.com/JFJun/go-substrate-crypto/ss58"
+	utils "github.com/Rjman-self/BBridge/shared/substrate"
+	"github.com/centrifuge/go-substrate-rpc-client/v3/types"
 	"github.com/rjman-self/sherpax-utils/msg"
 	"github.com/rjman-self/substrate-go/client"
 	"github.com/rjman-self/substrate-go/expand"
+	"github.com/rjman-self/substrate-go/expand/chainx/xevents"
 )
 
 /// ChainId Type
 const (
-	/// EthLike
 	IdBSC       			msg.ChainId = 2
-	/// Sub
 	IdKusama    			msg.ChainId = 1
 	IdPolkadot  			msg.ChainId = 5
 	IdChainXBTCV1 			msg.ChainId = 3
@@ -20,60 +21,15 @@ const (
 	IdChainXPCXV2 			msg.ChainId = 11
 )
 
-/// Chain name constants
-const (
-	NameUnimplemented		string = "unimplemented"
-	/// EthLike
-	NameBSC					string = "bsc"
-	NameETH					string = "eth"
-	NamePlaton				string = "platon"
-	NameAlaya				string = "alaya"
-	/// Sub-Based
-	/// Kusama
-	NameKusama				string = "kusama"
-	/// Polkadot
-	NamePolkadot			string = "polkadot"
-	/// ChainX
-	NameChainXAsset			string = "chainxasset"
-	NameChainXPCX			string = "chainxpcx"
-	NameChainX				string = "chainx"
-	/// SherpaX
-	NameSherpaXAsset        string = "sherpaxasset"
-	NameSherpaXPCX          string = "sherpaxpcx"
-	NameSherpaX				string = "sherpax"
-	/// ChainX_V1
-	NameChainXV1			string = "chainx_v1"
-	NameChainXAssetV1		string = "chainxasset_v1"
-)
+var NativeLimit msg.ChainId = 100
 
-var (
-	chainNameSets = [...]string{ NameBSC, NameETH, NameKusama, NamePolkadot, NameChainXAsset, NameChainXPCX, NameChainX,
-		NameSherpaXAsset, NameSherpaXPCX, NameSherpaX }
-	ChainSets = []struct{
-		Name 	string
-		Type 	ChainType
-	}{
-		/// Eth-Like
-		{NameBSC, 			EthLike},
-		{NameETH, 			EthLike},
-		{NamePlaton,          PlatonLike},
-		{NameAlaya,           PlatonLike},
-		/// Sub-Like
-		{NamePolkadot, 		PolkadotLike},
-		{NameKusama,			KusamaLike},
-		{NameChainXV1, 		ChainXV1Like},
-		{NameChainXAssetV1, 	ChainXV1AssetLike},
-		{NameChainXAsset, 	ChainXAssetLike},
-		{NameChainXPCX, 		ChainXLike},
-		{NameChainX, 			ChainXLike},
-		{NameSherpaXAsset, 	ChainXAssetLike},
-		{NameSherpaXPCX, 		ChainXLike},
-		{NameSherpaX,			ChainXLike},
-	}
-)
+// IsNativeTransfer Chain id distinguishes Tx types(Native, Fungible...)
+func IsNativeTransfer(id msg.ChainId) bool {
+	return id <= NativeLimit
+}
 
 func (bc *BridgeCore) InitializeClientPrefix(cli *client.Client) {
-	switch bc.ChainType {
+	switch bc.ChainInfo.Type {
 	case PolkadotLike:
 		cli.SetPrefix(ss58.PolkadotPrefix)
 	case ChainXV1Like:
@@ -93,21 +49,27 @@ func (bc *BridgeCore) InitializeClientPrefix(cli *client.Client) {
 	}
 }
 
-func (bc *BridgeCore) GetBasedChain() string {
-	switch bc.ChainType {
-	case ChainXV1Like:
-		return NameChainX
-	case ChainXV1AssetLike:
-		return NameChainX
-	case ChainXLike:
-		return NameChainX
-	case ChainXAssetLike:
-		return NameChainX
-	case PolkadotLike:
-		return NamePolkadot
-	case KusamaLike:
-		return NameKusama
-	default:
-		return NameUnimplemented
+func (bc *BridgeCore) MakeBalanceTransferCall(m msg.Message, meta *types.Metadata, assetId xevents.AssetId) (types.Call, error) {
+	recipient := bc.GetSubChainRecipient(m)
+
+	var c types.Call
+	sendAmount, err := bc.GetSendToSubChainAmount(m.Payload[0].([]byte), assetId)
+	if err != nil {
+		return types.Call{}, err
 	}
+
+	c, err = types.NewCall(
+		meta,
+		string(utils.BalancesTransferKeepAliveMethod),
+		recipient,
+		types.NewUCompact(sendAmount),
+	)
+	if err != nil {
+		return types.Call{}, err
+	}
+	return c, nil
+}
+
+func (bc *BridgeCore) MakeXAssetTransferCall() {
+
 }

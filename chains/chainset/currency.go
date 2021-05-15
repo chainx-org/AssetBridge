@@ -28,7 +28,7 @@ const (
 	FixedPCXFee = SinglePCX * 1 / 10	/// 0.1PCX
 )
 
-/// Additional formalities rate excluding fixed handling fee
+// ExtraFeeRate Additional formalities rate excluding fixed handling fee
 var ExtraFeeRate int64 = 1000
 
 type Currency struct {
@@ -41,14 +41,15 @@ type Currency struct {
 }
 
 var currencies = []Currency{
-	{OriginAsset, 	"KSM", 	DiffKSM, 		FixedKSMFee, ExtraFeeRate},
-	{OriginAsset, 	"DOT", 	DiffDOT, 		FixedDOTFee, ExtraFeeRate},
-	{OriginAsset, 	"PCX", 	DiffPCX, 		FixedPCXFee, ExtraFeeRate},
-	{AssetXBTC, 		"XBTC", 	DiffXBTC, 		0,			 0},
-	{AssetXBNB, 		"XBNB", 	DiffXAsset, 	0,			 0},
-	{AssetXETH, 		"XETH", 	DiffXAsset, 	0,			 0},
-	{AssetXUSD, 		"XUSD", 	DiffXAsset, 	0,			 0},
-	{AssetXHT, 		"XHT", 	DiffXAsset, 	0,			 0},
+	{OriginAsset, 	TokenKSM, 	DiffKSM, 		FixedKSMFee, ExtraFeeRate},
+	{OriginAsset, 	TokenDOT, 	DiffDOT, 		FixedDOTFee, ExtraFeeRate},
+	{OriginAsset, 	TokenPCX, 	DiffPCX, 		FixedPCXFee, ExtraFeeRate},
+	{AssetXBTC, 		TokenXBTC	, 	DiffXBTC, 	0,			 0},
+	{AssetXBNB, 		TokenXBNB, 	DiffXAsset, 	0,			 0},
+	{AssetXETH, 		TokenXETH, 	DiffXAsset, 	0,			 0},
+	{AssetXUSD, 		TokenXUSD, 	DiffXAsset, 	0,			 0},
+	{AssetXHT, 		TokenXHT, 	DiffXAsset, 	0,			 0},
+	{XAssetId, 		TokenXAsset, 	DiffXAsset, 	0,			 0},
 }
 
 /// AssetId Type
@@ -59,20 +60,20 @@ const (
 	AssetXETH			xevents.AssetId = 3
 	AssetXUSD			xevents.AssetId = 4
 	AssetXHT			xevents.AssetId = 5
+	XAssetId			xevents.AssetId = 999
 )
 
-func (bc *BridgeCore) getCurrency(assetId xevents.AssetId) Currency {
+func (bc *BridgeCore) GetCurrency(assetId xevents.AssetId) *Currency {
 	/// If token has assetId, return ChainX currency
 	for _, currency := range currencies {
 		if assetId == currency.AssetId {
-			return currency
+			return &currency
+		} else if assetId == 0 && bc.ChainInfo.NativeToken == currency.Name {
+			/// If token is native token, check the from chain
+			return &currency
 		}
 	}
 
-	/// If token is native token, check the from chain
-	token := "which_token"
-	switch bc.ChainType {
-	case :
-
-	}
+	/// Currency not found
+	return nil
 }

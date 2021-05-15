@@ -9,7 +9,6 @@ import (
 	"github.com/JFJun/go-substrate-crypto/ss58"
 	"github.com/Rjman-self/BBridge/chains/chainset"
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/rjman-self/substrate-go/expand"
 	"github.com/rjman-self/substrate-go/expand/base"
 	"github.com/rjman-self/substrate-go/expand/chainx"
 	"github.com/rjman-self/substrate-go/models"
@@ -197,7 +196,6 @@ func (l *listener) pollBlocks() error {
 		default:
 			// No more retries, goto next block
 			if retry == 0 {
-				//l.sysErr <- fmt.Errorf("event polling retries exceeded (chain=%d, name=%s)", l.chainId, l.name)
 				return fmt.Errorf("event polling retries exceeded (chain=%d, name=%s)", l.chainId, l.name)
 			}
 
@@ -259,7 +257,7 @@ func (l *listener) pollBlocks() error {
 				continue
 			}
 
-			/// Deal cross tx
+			/// Deal cross-chain tx
 			err = l.processEvents(hash)
 			if err != nil {
 				l.log.Error("Failed to process events in block", "block", currentBlock, "err", err)
@@ -449,49 +447,8 @@ func (l *listener) dealBlockTx(resp *models.BlockResponse, currentBlock int64) {
 				l.resourceId,
 				recipient[:],
 			)
-			if m.Destination <= 100 {
-				fmt.Printf("Sub listener make a `NativeTransfer`, dest is %v, delete this line\n", m.Destination)
-			}
 			l.logReadyToSend(sendAmount, recipient, e)
 			l.submitMessage(m, nil)
-		}
-	}
-}
-
-func (l *listener) markNew(e *models.ExtrinsicResponse) {
-	msTx := MultiSigAsMulti{
-		Executed:       false,
-		Threshold:      e.MultiSigAsMulti.Threshold,
-		MaybeTimePoint: e.MultiSigAsMulti.MaybeTimePoint,
-		DestAddress:    e.MultiSigAsMulti.DestAddress,
-		DestAmount:     e.MultiSigAsMulti.DestAmount,
-		Others:         nil,
-		StoreCall:      e.MultiSigAsMulti.StoreCall,
-		MaxWeight:      e.MultiSigAsMulti.MaxWeight,
-		OriginMsTx:     l.currentTx,
-	}
-	/// Mark voted
-	msTx.Others = append(msTx.Others, e.MultiSigAsMulti.OtherSignatories)
-	l.msTxAsMulti[l.currentTx] = msTx
-}
-
-func (l *listener) markVote(msTx MultiSigAsMulti, e *models.ExtrinsicResponse) {
-	for k, ms := range l.msTxAsMulti {
-		if !ms.Executed && ms.DestAddress == msTx.DestAddress && ms.DestAmount == msTx.DestAmount {
-			//l.log.Info("relayer succeed vote", "Address", e.FromAddress)
-			voteMsTx := l.msTxAsMulti[k]
-			voteMsTx.Others = append(voteMsTx.Others, e.MultiSigAsMulti.OtherSignatories)
-			l.msTxAsMulti[k] = voteMsTx
-		}
-	}
-}
-
-func (l *listener) markExecution(msTx MultiSigAsMulti) {
-	for k, ms := range l.msTxAsMulti {
-		if !ms.Executed && ms.DestAddress == msTx.DestAddress && ms.DestAmount == msTx.DestAmount {
-			exeMsTx := l.msTxAsMulti[k]
-			exeMsTx.Executed = true
-			l.msTxAsMulti[k] = exeMsTx
 		}
 	}
 }
@@ -516,44 +473,14 @@ func (l *listener) getSendAmount(e *models.ExtrinsicResponse) (*big.Int, bool) {
 	amount, ok := big.NewInt(0).SetString(e.Amount, 10)
 	if !ok {
 		fmt.Printf("parse transfer amount %v, amount.string %v\n", amount, amount.String())
-	}
-
-	sendAmount := l.bridgeCore.GetSendAmount(amount.Bytes())
-	if sendAmount.Cmp(big.NewInt(0)) == -1 {
-		l.log.Error("Charge a neg amount", "Amount", amount, "chain", l.name)
 		return nil, false
 	}
 
-	if l.chainId == chainset.IdPolkadot {
-	} else if l.chainId == chainset.IdKusama {
-		sendAmount = l.bridgeCore.CalculateHandleSubLikeFee(amount.Bytes(),
-			chainset.DiffKSM, chainset.FixedKSMFee, chainset.ExtraFeeRate)
-		if sendAmount.Cmp(big.NewInt(0)) == -1 {
-			l.log.Error("Charge a neg amount", "Amount", amount, "chain", l.name)
-			return nil, false
-		}
-		l.logCrossChainTx("KSM", "BKSM", amount, big.NewInt(0).Sub(sendAmount, amount), sendAmount)
-	} else if (l.chainId == chainset.IdChainXBTCV1 || l.chainId == chainset.IdChainXBTCV2) && e.AssetId == chainset.AssetXBTC {
-		sendAmount = l.bridgeCore.CalculateHandleSubLikeFee(amount.Bytes(),
-			chainset.DiffXAsset, 0, 0)
-		if sendAmount.Cmp(big.NewInt(0)) == -1 {
-			l.log.Error("Charge a neg amount", "Amount", amount, "chain", l.name)
-			return nil, false
-		}
-		l.logCrossChainTx("XBTC", "BBTC", amount, big.NewInt(0).Sub(sendAmount, amount), sendAmount)
-	} else if (l.chainId == chainset.IdChainXPCXV1 || l.chainId == chainset.IdChainXPCXV2) && e.AssetId == expand.PcxAssetId {
-		sendAmount = l.bridgeCore.CalculateHandleSubLikeFee(amount.Bytes(),
-			chainset.DiffPCX, chainset.FixedPCXFee, chainset.ExtraFeeRate)
-		if sendAmount.Cmp(big.NewInt(0)) == -1 {
-			l.log.Error("Charge a neg amount", "Amount", amount, "chain", l.name)
-			return nil, false
-		}
-		l.logCrossChainTx("PCX", "BPCX", amount, big.NewInt(0).Sub(sendAmount, amount), sendAmount)
-	} else {
-		/// Other Chain
-		l.log.Error("chainId set wrong, unimplemented", "chainId", l.chainId)
+	sendAmount, err := l.bridgeCore.GetSendToEthChainAmount(amount.Bytes(), e.AssetId)
+	if err != nil {
 		return nil, false
 	}
+
 	return sendAmount, true
 }
 
@@ -594,34 +521,10 @@ func (l *listener) logCrossChainTx (tokenX string, tokenY string, amount *big.In
 }
 
 func (l *listener) logReadyToSend(amount *big.Int, recipient []byte, e *models.ExtrinsicResponse) {
-	var token string
-	switch l.chainId {
-	case chainset.IdKusama:
-		token = "AKSM"
-	case chainset.IdPolkadot:
-		token = "PDOT"
-	case chainset.IdChainXBTCV1:
-		if e.AssetId == chainset.AssetXBTC {
-			token = "ABTC"
-		}
-	case chainset.IdChainXBTCV2:
-		if e.AssetId == chainset.AssetXBTC {
-			token = "ABTC"
-		}
-	case chainset.IdChainXPCXV1:
-		if e.AssetId == expand.PcxAssetId {
-			token = "APCX"
-		}
-	case chainset.IdChainXPCXV2:
-		if e.AssetId == expand.PcxAssetId {
-			token = "APCX"
-		}
-	default:
-		l.log.Error("chainId set wrong, meet error", "ChainId", l.chainId)
-		return
-	}
-	message := "Ready to send " + token + "..."
+	currency := l.bridgeCore.GetCurrency(e.AssetId)
+
+	sendMessage := "Ready to send " + currency.Name + "..."
 	l.log.Info(LineLog, "Amount", amount, "FromId", l.chainId, "To", l.destId)
-	l.log.Info(message, "Amount", amount, "FromId", l.chainId, "To", l.destId)
+	l.log.Info(sendMessage, "Amount", amount, "FromId", l.chainId, "To", l.destId)
 	l.log.Info(LineLog, "Amount", amount, "FromId", l.chainId, "To", l.destId)
 }

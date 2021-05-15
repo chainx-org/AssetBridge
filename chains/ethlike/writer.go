@@ -6,6 +6,7 @@ package ethlike
 import (
 	"github.com/ChainSafe/log15"
 	"github.com/Rjman-self/BBridge/bindings/Bridge"
+	"github.com/Rjman-self/BBridge/chains/chainset"
 	"github.com/rjman-self/sherpax-utils/core"
 	metrics "github.com/rjman-self/sherpax-utils/metrics/types"
 	"github.com/rjman-self/sherpax-utils/msg"
@@ -25,10 +26,11 @@ type writer struct {
 	stop           <-chan int
 	sysErr         chan<- error // Reports fatal error to core
 	metrics        *metrics.ChainMetrics
+	bridgeCore     *chainset.BridgeCore
 }
 
 // NewWriter creates and returns writer
-func NewWriter(conn Connection, cfg *Config, log log15.Logger, stop <-chan int, sysErr chan<- error, m *metrics.ChainMetrics) *writer {
+func NewWriter(conn Connection, cfg *Config, log log15.Logger, stop <-chan int, sysErr chan<- error, m *metrics.ChainMetrics, bc *chainset.BridgeCore) *writer {
 	return &writer{
 		cfg:     *cfg,
 		conn:    conn,
@@ -36,6 +38,7 @@ func NewWriter(conn Connection, cfg *Config, log log15.Logger, stop <-chan int, 
 		stop:    stop,
 		sysErr:  sysErr,
 		metrics: m,
+		bridgeCore: bc,
 	}
 }
 

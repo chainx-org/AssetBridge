@@ -84,6 +84,8 @@ func InitializeChain(chainCfg *core.ChainConfig, logger log15.Logger, sysErr cha
 		return nil, err
 	}
 
+	bc := chainset.NewBridgeCore(cfg.name)
+
 	// set chainId
 	networkId, _ := strconv.ParseUint(cfg.networkId, 0, 64)
 
@@ -139,25 +141,15 @@ func InitializeChain(chainCfg *core.ChainConfig, logger log15.Logger, sysErr cha
 			return nil, err
 		}
 		cfg.startBlock = curr
-		switch cfg.id {
-		case chainset.IdBSC:
-			log15.Info(" Start block is newest", "StartBlock", cfg.startBlock)
-		default:
-			log15.Info("Start block is newest", "StartBlock", cfg.startBlock)
-		}
+		log15.Info("Start block is newest", "StartBlock", cfg.startBlock, "Chain", cfg.name)
 	} else {
-		switch cfg.id {
-		case chainset.IdBSC:
-			log15.Info("BSC Start block is specified", "StartBlock", cfg.startBlock)
-		default:
-			log15.Info("Start block is specified", "StartBlock", cfg.startBlock)
-		}
+		log15.Info("Start block is specified", "StartBlock", cfg.startBlock, "Chain", cfg.name)
 	}
 
 	listener := NewListener(conn, cfg, logger, bs, stop, sysErr, m)
 	listener.setContracts(bridgeContract, erc20HandlerContract)
 
-	writer := NewWriter(conn, cfg, logger, stop, sysErr, m)
+	writer := NewWriter(conn, cfg, logger, stop, sysErr, m, bc)
 	writer.setContract(bridgeContract)
 
 	return &Chain{

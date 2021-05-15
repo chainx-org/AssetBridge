@@ -1,67 +1,46 @@
 package chainset
 
 import (
-	"github.com/rjman-self/sherpax-utils/msg"
 	"strings"
 )
 
 type ChainType int
-const (
-	/// Eth-Like
-	EthLike = iota
-	PlatonLike
-
-	/// Sub-Like
-	SubLike
-	PolkadotLike
-	KusamaLike
-	/// ChainX V1 use Address Type
-	ChainXV1Like
-	ChainXV1AssetLike
-	ChainXLike
-	ChainXAssetLike
-)
 
 type BridgeCore struct {
 	ChainName		string
-	ChainType		ChainType
-	ChainBased		string
+	ChainInfo    	*ChainInfo
 }
 
 func NewBridgeCore(name string) *BridgeCore {
 	prefix := GetChainPrefix(name)
-	chainType := GetChainType(prefix)
-	basedChain :=
+	chainInfo := GetChainInfo(prefix)
 
 	return &BridgeCore{
-		ChainName: 		name,
-		ChainType:   	chainType,
-		ChainBased: 	basedChain,
+		ChainName: name,
+		ChainInfo: chainInfo,
 	}
 }
 
-var NativeLimit msg.ChainId = 100
-
-/// Chain id distinguishes Tx types(Native, Fungible...)
-func IsNativeTransfer(id msg.ChainId) bool {
-	return id <= NativeLimit
-}
-
-func GetChainType(prefix string) ChainType {
+func GetChainInfo(prefix string) *ChainInfo {
 	for _, cs := range ChainSets {
-		if prefix == cs.Name {
-			return cs.Type
+		if prefix == cs.Prefix {
+			return &cs
 		}
 	}
-	return -1
+
+	/// Not implemented yet
+	return &ChainInfo{
+		Prefix: "CheckYourConfigFile",
+		NativeToken:  "NONE",
+		Type:   NoneLike,
+	}
 }
 
 func GetChainPrefix(name string) string {
-	for _, j := range chainNameSets {
-		if strings.HasPrefix(name, j) {
-			return j
+	for _, j := range ChainSets {
+		if strings.HasPrefix(name, j.Prefix) {
+			return j.Prefix
 		}
 	}
 	return NameUnimplemented
 }
-

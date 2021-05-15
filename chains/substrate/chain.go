@@ -1,3 +1,4 @@
+package substrate
 // Copyright 2020 ChainSafe Systems
 // SPDX-License-Identifier: LGPL-3.0-only
 
@@ -21,7 +22,6 @@ Writer
 As the writer receives messages from the router, it constructs proposals. If a proposal is still active, the writer will attempt to vote on it. Resource IDs are resolved to method name on-chain, which are then used in the proposals when constructing the resulting Call struct.
 
 */
-package substrate
 
 import (
 	"github.com/ChainSafe/log15"

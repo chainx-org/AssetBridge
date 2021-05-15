@@ -43,13 +43,14 @@ type listener struct {
 	sysErr        chan<- error
 	latestBlock   metrics.LatestBlock
 	metrics       *metrics.ChainMetrics
-	client        client.Client
+	client        *client.Client
 	multiSignAddr types.AccountID
 	currentTx     MultiSignTx
 	msTxAsMulti   map[MultiSignTx]MultiSigAsMulti
 	resourceId    msg.ResourceId
 	destId        msg.ChainId
 	relayer       Relayer
+	bridgeCore    *chainset.BridgeCore
 }
 
 var ErrBlockNotReady = errors.New("required result to be 32 bytes, but got 0")
@@ -63,27 +64,28 @@ var RedeemRetryLimit = 15
 
 func NewListener(conn *Connection, name string, id msg.ChainId, startBlock uint64, endBlock uint64, lostAddress string, log log15.Logger, bs blockstore.Blockstorer,
 	stop <-chan int, sysErr chan<- error, m *metrics.ChainMetrics, multiSignAddress types.AccountID, cli *client.Client,
-	resource msg.ResourceId, dest msg.ChainId, relayer Relayer) *listener {
+	resource msg.ResourceId, dest msg.ChainId, relayer Relayer, bc *chainset.BridgeCore) *listener {
 	return &listener{
-		name:          name,
-		chainId:       id,
-		startBlock:    startBlock,
-		endBlock:      endBlock,
-		lostAddress:   lostAddress,
-		blockStore:    bs,
-		conn:          conn,
-		subscriptions: make(map[eventName]eventHandler),
-		log:           log,
-		stop:          stop,
-		sysErr:        sysErr,
-		latestBlock:   metrics.LatestBlock{LastUpdated: time.Now()},
-		metrics:       m,
-		client:        *cli,
-		multiSignAddr: multiSignAddress,
-		msTxAsMulti:   make(map[MultiSignTx]MultiSigAsMulti, InitCapacity),
-		resourceId:    resource,
-		destId:        dest,
-		relayer:       relayer,
+		name:          	name,
+		chainId:       	id,
+		startBlock:    	startBlock,
+		endBlock:      	endBlock,
+		lostAddress:   	lostAddress,
+		blockStore:    	bs,
+		conn:          	conn,
+		subscriptions: 	make(map[eventName]eventHandler),
+		log:           	log,
+		stop:          	stop,
+		sysErr:        	sysErr,
+		latestBlock:   	metrics.LatestBlock{LastUpdated: time.Now()},
+		metrics:       	m,
+		client:        	cli,
+		multiSignAddr: 	multiSignAddress,
+		msTxAsMulti:   	make(map[MultiSignTx]MultiSigAsMulti, InitCapacity),
+		resourceId:    	resource,
+		destId:        	dest,
+		relayer:       	relayer,
+		bridgeCore:		bc,
 	}
 }
 
@@ -141,9 +143,9 @@ func (l *listener) reconnect() {
 			l.log.Error("Retry...", "chain", l.name)
 			cli, err := client.New(l.conn.url)
 			if err == nil {
-				//InitializePrefixById(l.chainId, cli)
-				chainset.InitializePrefixByName(l.name, cli)
-				l.client = *cli
+				bc := chainset.NewBridgeCore(l.name)
+				bc.InitializeClientPrefix(cli)
+				l.client = cli
 			}
 			ClientRetryLimit = BlockRetryLimit
 		}
@@ -456,7 +458,6 @@ func (l *listener) dealBlockTx(resp *models.BlockResponse, currentBlock int64) {
 	}
 }
 
-
 func (l *listener) markNew(e *models.ExtrinsicResponse) {
 	msTx := MultiSigAsMulti{
 		Executed:       false,
@@ -516,17 +517,16 @@ func (l *listener) getSendAmount(e *models.ExtrinsicResponse) (*big.Int, bool) {
 	if !ok {
 		fmt.Printf("parse transfer amount %v, amount.string %v\n", amount, amount.String())
 	}
-	sendAmount := big.NewInt(0)
+
+	sendAmount := l.bridgeCore.GetSendAmount(amount.Bytes())
+	if sendAmount.Cmp(big.NewInt(0)) == -1 {
+		l.log.Error("Charge a neg amount", "Amount", amount, "chain", l.name)
+		return nil, false
+	}
+
 	if l.chainId == chainset.IdPolkadot {
-		sendAmount = chainset.CalculateHandleSubLikeFee(amount.Bytes(),
-			chainset.DiffDOT, chainset.FixedDOTFee, chainset.ExtraFeeRate)
-		if sendAmount.Cmp(big.NewInt(0)) == -1 {
-			l.log.Error("Charge a neg amount", "Amount", amount, "chain", l.name)
-			return nil, false
-		}
-		l.logCrossChainTx("DOT", "BDOT", amount, big.NewInt(0).Sub(sendAmount, amount), sendAmount)
 	} else if l.chainId == chainset.IdKusama {
-		sendAmount = chainset.CalculateHandleSubLikeFee(amount.Bytes(),
+		sendAmount = l.bridgeCore.CalculateHandleSubLikeFee(amount.Bytes(),
 			chainset.DiffKSM, chainset.FixedKSMFee, chainset.ExtraFeeRate)
 		if sendAmount.Cmp(big.NewInt(0)) == -1 {
 			l.log.Error("Charge a neg amount", "Amount", amount, "chain", l.name)
@@ -534,7 +534,7 @@ func (l *listener) getSendAmount(e *models.ExtrinsicResponse) (*big.Int, bool) {
 		}
 		l.logCrossChainTx("KSM", "BKSM", amount, big.NewInt(0).Sub(sendAmount, amount), sendAmount)
 	} else if (l.chainId == chainset.IdChainXBTCV1 || l.chainId == chainset.IdChainXBTCV2) && e.AssetId == chainset.AssetXBTC {
-		sendAmount = chainset.CalculateHandleSubLikeFee(amount.Bytes(),
+		sendAmount = l.bridgeCore.CalculateHandleSubLikeFee(amount.Bytes(),
 			chainset.DiffXAsset, 0, 0)
 		if sendAmount.Cmp(big.NewInt(0)) == -1 {
 			l.log.Error("Charge a neg amount", "Amount", amount, "chain", l.name)
@@ -542,7 +542,7 @@ func (l *listener) getSendAmount(e *models.ExtrinsicResponse) (*big.Int, bool) {
 		}
 		l.logCrossChainTx("XBTC", "BBTC", amount, big.NewInt(0).Sub(sendAmount, amount), sendAmount)
 	} else if (l.chainId == chainset.IdChainXPCXV1 || l.chainId == chainset.IdChainXPCXV2) && e.AssetId == expand.PcxAssetId {
-		sendAmount = chainset.CalculateHandleSubLikeFee(amount.Bytes(),
+		sendAmount = l.bridgeCore.CalculateHandleSubLikeFee(amount.Bytes(),
 			chainset.DiffPCX, chainset.FixedPCXFee, chainset.ExtraFeeRate)
 		if sendAmount.Cmp(big.NewInt(0)) == -1 {
 			l.log.Error("Charge a neg amount", "Amount", amount, "chain", l.name)

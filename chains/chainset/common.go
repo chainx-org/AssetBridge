@@ -5,7 +5,6 @@ import (
 	"github.com/rjman-self/sherpax-utils/msg"
 	"github.com/rjman-self/substrate-go/client"
 	"github.com/rjman-self/substrate-go/expand"
-	"strings"
 )
 
 /// ChainId Type
@@ -21,89 +20,94 @@ const (
 	IdChainXPCXV2 			msg.ChainId = 11
 )
 
+/// Chain name constants
 const (
 	NameUnimplemented		string = "unimplemented"
 	/// EthLike
 	NameBSC					string = "bsc"
 	NameETH					string = "eth"
-
-	/// SubBased
+	NamePlaton				string = "platon"
+	NameAlaya				string = "alaya"
+	/// Sub-Based
+	/// Kusama
 	NameKusama				string = "kusama"
+	/// Polkadot
 	NamePolkadot			string = "polkadot"
+	/// ChainX
 	NameChainXAsset			string = "chainxasset"
 	NameChainXPCX			string = "chainxpcx"
 	NameChainX				string = "chainx"
+	/// SherpaX
 	NameSherpaXAsset        string = "sherpaxasset"
 	NameSherpaXPCX          string = "sherpaxpcx"
 	NameSherpaX				string = "sherpax"
+	/// ChainX_V1
+	NameChainXV1			string = "chainx_v1"
+	NameChainXAssetV1		string = "chainxasset_v1"
 )
 
+var (
+	chainNameSets = [...]string{ NameBSC, NameETH, NameKusama, NamePolkadot, NameChainXAsset, NameChainXPCX, NameChainX,
+		NameSherpaXAsset, NameSherpaXPCX, NameSherpaX }
+	ChainSets = []struct{
+		Name 	string
+		Type 	ChainType
+	}{
+		/// Eth-Like
+		{NameBSC, 			EthLike},
+		{NameETH, 			EthLike},
+		{NamePlaton,          PlatonLike},
+		{NameAlaya,           PlatonLike},
+		/// Sub-Like
+		{NamePolkadot, 		PolkadotLike},
+		{NameKusama,			KusamaLike},
+		{NameChainXV1, 		ChainXV1Like},
+		{NameChainXAssetV1, 	ChainXV1AssetLike},
+		{NameChainXAsset, 	ChainXAssetLike},
+		{NameChainXPCX, 		ChainXLike},
+		{NameChainX, 			ChainXLike},
+		{NameSherpaXAsset, 	ChainXAssetLike},
+		{NameSherpaXPCX, 		ChainXLike},
+		{NameSherpaX,			ChainXLike},
+	}
+)
 
-func InitializePrefixByName(name string, cli *client.Client) {
-	prefixName := GetChainPrefix(name)
-	switch prefixName {
-	case NameChainXAsset:
-		cli.SetPrefix(ss58.ChainXPrefix)
-		cli.Name = expand.ChainXbtc
-	case NameChainXPCX:
+func (bc *BridgeCore) InitializeClientPrefix(cli *client.Client) {
+	switch bc.ChainType {
+	case PolkadotLike:
+		cli.SetPrefix(ss58.PolkadotPrefix)
+	case ChainXV1Like:
 		cli.SetPrefix(ss58.ChainXPrefix)
 		cli.Name = expand.ChainXpcx
-	case NamePolkadot:
-		cli.SetPrefix(ss58.PolkadotPrefix)
-	case NameKusama:
-		cli.SetPrefix(ss58.PolkadotPrefix)
+	case ChainXV1AssetLike:
+		cli.SetPrefix(ss58.ChainXPrefix)
+		cli.Name = expand.ChainXbtc
+	case ChainXLike:
+		cli.SetPrefix(ss58.ChainXPrefix)
+		cli.Name = expand.ChainXpcx
+	case ChainXAssetLike:
+		cli.SetPrefix(ss58.ChainXPrefix)
+		cli.Name = expand.ChainXbtc
 	default:
 		cli.SetPrefix(ss58.PolkadotPrefix)
-		cli.Name = "Why is there no name?"
 	}
 }
 
-func InitializePrefixById(id msg.ChainId, cli *client.Client) {
-	switch id {
-	case IdKusama:
-		cli.SetPrefix(ss58.PolkadotPrefix)
-	case IdChainXBTCV1:
-		cli.SetPrefix(ss58.ChainXPrefix)
-		cli.Name = expand.ChainXbtc
-	case IdChainXBTCV2:
-		cli.SetPrefix(ss58.ChainXPrefix)
-		cli.Name = expand.ChainXbtc
-	case IdChainXPCXV1:
-		cli.SetPrefix(ss58.ChainXPrefix)
-		cli.Name = expand.ChainXpcx
-	case IdChainXPCXV2:
-		cli.SetPrefix(ss58.ChainXPrefix)
-		cli.Name = expand.ChainXpcx
-	case IdPolkadot:
-		cli.SetPrefix(ss58.PolkadotPrefix)
-	default:
-		cli.SetPrefix(ss58.PolkadotPrefix)
-		cli.Name = "Why is there no name?"
-	}
-}
-
-func GetChainPrefix(name string) string {
-	if strings.HasPrefix(name, NameChainXAsset) {
-		return NameChainXAsset
-	} else if strings.HasPrefix(name, NameChainXPCX) {
-		return NameChainXPCX
-	} else if strings.HasPrefix(name, NameChainX) {
+func (bc *BridgeCore) GetBasedChain() string {
+	switch bc.ChainType {
+	case ChainXV1Like:
 		return NameChainX
-	} else if strings.HasPrefix(name, NameSherpaXAsset) {
-		return NameSherpaXAsset
-	} else if strings.HasPrefix(name, NameSherpaXPCX) {
-		return NameSherpaXPCX
-	} else if strings.HasPrefix(name, NameSherpaX) {
-		return NameSherpaX
-	} else if strings.HasPrefix(name, NameKusama) {
-		return NameKusama
-	} else if strings.HasPrefix(name, NamePolkadot) {
+	case ChainXV1AssetLike:
+		return NameChainX
+	case ChainXLike:
+		return NameChainX
+	case ChainXAssetLike:
+		return NameChainX
+	case PolkadotLike:
 		return NamePolkadot
-	} else if strings.HasPrefix(name, NameBSC) {
-		return NameBSC
-	} else if strings.HasPrefix(name, NameETH) {
-		return NameETH
-	} else {
+	case KusamaLike:
+		return NameKusama
+	default:
 		return NameUnimplemented
 	}
 }

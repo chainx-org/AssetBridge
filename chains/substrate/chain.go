@@ -112,14 +112,14 @@ func InitializeChain(cfg *core.ChainConfig, logger log15.Logger, sysErr chan<- e
 	dest := parseDestId(cfg)
 	resource := parseResourceId(cfg)
 
+	/// Initialize client
 	cli, err := client.New(url)
 	if err != nil {
 		panic(err)
 	}
 
-	/// Initialize prefix
-	//InitializePrefixById(cfg.Id, cli)
-	chainset.InitializePrefixByName(cfg.Name, cli)
+	bc := chainset.NewBridgeCore(cfg.Name)
+	bc.InitializeClientPrefix(cli)
 
 	log15.Info("Initialize ChainInfo", "Prefix", cli.Prefix, "Name", cli.Name, "Id", cfg.Id)
 
@@ -128,8 +128,8 @@ func InitializeChain(cfg *core.ChainConfig, logger log15.Logger, sysErr chan<- e
 
 	/// Setup listener & writer
 	l := NewListener(conn, cfg.Name, cfg.Id, startBlock, endBlock, lostAddress,
-		logger, bs, stop, sysErr, m, multiSignAddress, cli, resource, dest, relayer)
-	w := NewWriter(conn, l, logger, sysErr, m, useExtended, weight, relayer)
+		logger, bs, stop, sysErr, m, multiSignAddress, cli, resource, dest, relayer, bc)
+	w := NewWriter(conn, l, logger, sysErr, m, useExtended, weight, relayer, bc)
 
 	return &Chain{
 		cfg:      cfg,

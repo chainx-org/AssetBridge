@@ -40,10 +40,11 @@ type writer struct {
 	relayer    Relayer
 	maxWeight  uint64
 	messages   map[Dest]bool
+	bridgeCore *chainset.BridgeCore
 }
 
 func NewWriter(conn *Connection, listener *listener, log log15.Logger, sysErr chan<- error,
-	m *metrics.ChainMetrics, extendCall bool, weight uint64, relayer Relayer) *writer {
+	m *metrics.ChainMetrics, extendCall bool, weight uint64, relayer Relayer, bc *chainset.BridgeCore) *writer {
 
 	msApi, err := gsrpc.NewSubstrateAPI(conn.url)
 	if err != nil {
@@ -67,6 +68,7 @@ func NewWriter(conn *Connection, listener *listener, log log15.Logger, sysErr ch
 		relayer:    relayer,
 		maxWeight:  weight,
 		messages:   make(map[Dest]bool, InitCapacity),
+		bridgeCore: bc,
 	}
 }
 

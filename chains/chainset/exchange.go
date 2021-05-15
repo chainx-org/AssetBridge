@@ -1,24 +1,15 @@
 package chainset
 
 import (
+	log "github.com/ChainSafe/log15"
 	"github.com/centrifuge/go-substrate-rpc-client/v3/types"
 	"github.com/rjman-self/sherpax-utils/msg"
 	"math/big"
 )
 
-/// Fixed handling fee for cross-chain transactions
-const (
-	FixedKSMFee = SingleKSM * 3 / 100	/// 0.03KSM
-	FixedDOTFee = SingleDOT * 5 / 10	/// 0.5DOT
-	FixedPCXFee = SinglePCX * 1 / 10	/// 0.1PCX
-)
-
-/// Additional formalities rate excluding fixed handling fee
-var ExtraFeeRate int64 = 1000
-
 /// Calculate handling fee of cross-chain transaction
 /// Eth-Like to Sub-Like
-func CalculateHandleEthLikeFee(origin []byte, singleToken int64, fixedTokenFee int64, extraFeeRate int64) *big.Int {
+func (bc *BridgeCore) CalculateHandleEthLikeFee(origin []byte, singleToken int64, fixedTokenFee int64, extraFeeRate int64) *big.Int {
 	originAmount := big.NewInt(0).SetBytes(origin)
 	receiveAmount := big.NewInt(0).Div(originAmount, big.NewInt(int64(singleToken)))
 
@@ -38,24 +29,55 @@ func CalculateHandleEthLikeFee(origin []byte, singleToken int64, fixedTokenFee i
 	return sendAmount
 }
 
-/// Sub-Like to EthLike
-func CalculateHandleSubLikeFee(origin []byte, singleToken int64, fixedTokenFee int64, extraFeeRate int64) *big.Int {
-	originAmount := big.NewInt(0).SetBytes(origin)
+func (bc *BridgeCore) GetSendAmount(origin []byte) *big.Int {
 
+
+	sendAmount := bc.CalculateHandleSubLikeFee(origin,
+		DiffDOT, FixedDOTFee, ExtraFeeRate)
+	logCrossChainTx("DOT", "BDOT", sendAmount)
+
+
+	switch bc.ChainType {
+	case PolkadotLike:
+	case KusamaLike:
+		sendAmount := bc.CalculateHandleSubLikeFee(origin,
+			DiffKSM, FixedKSMFee, ExtraFeeRate)
+		logCrossChainTx("KSM", "BKSM", sendAmount)
+	case ChainXLike:
+		sendAmount := bc.CalculateHandleSubLikeFee(origin,
+			DiffPCX, FixedPCXFee, ExtraFeeRate)
+		logCrossChainTx("PCX", "BPCX", sendAmount)
+	case ChainXV1Like:
+		sendAmount := bc.CalculateHandleSubLikeFee(origin,
+			DiffPCX, FixedPCXFee, ExtraFeeRate)
+		logCrossChainTx("PCX", "BPCX", sendAmount)
+	default:
+		/// ChainX with no handling fee
+		sendAmount := bc.CalculateHandleSubLikeFee(origin,
+			DiffXAsset, 0, 0)
+		logCrossChainTx("KSM", "BKSM", sendAmount)
+	}
+	return
+}
+
+/// Sub-Like to EthLike
+func (bc *BridgeCore) CalculateHandleSubLikeFee(origin []byte, singleToken int64, fixedTokenFee int64, extraFeeRate int64) *big.Int {
+
+	originAmount := big.NewInt(0).SetBytes(origin)
 	/// Calculate fixedFee and extraFee
 	fixedFee := big.NewInt(fixedTokenFee)
 	extraFee := big.NewInt(0).Div(originAmount, big.NewInt(extraFeeRate))
 	fee := big.NewInt(0).Add(fixedFee, extraFee)
-
 	actualAmount := big.NewInt(0).Sub(originAmount, fee)
 	if actualAmount.Cmp(big.NewInt(0)) == -1 {
 		return big.NewInt(0)
 	}
 	sendAmount := big.NewInt(0).Mul(actualAmount, big.NewInt(singleToken))
+
 	return sendAmount
 }
 
-func GetSubLikeRecipient(m msg.Message) (types.MultiAddress, types.Address) {
+func (bc *BridgeCore) GetSubLikeRecipient(m msg.Message) (types.MultiAddress, types.Address) {
 	var multiAddressRecipient types.MultiAddress
 	var addressRecipient types.Address
 
@@ -67,4 +89,11 @@ func GetSubLikeRecipient(m msg.Message) (types.MultiAddress, types.Address) {
 		addressRecipient, _ = types.NewAddressFromHexAccountID(string(m.Payload[1].([]byte)))
 	}
 	return multiAddressRecipient, addressRecipient
+}
+
+
+func logCrossChainTx (tokenX string, tokenY string, actualAmount *big.Int) {
+	message := tokenX + " to " + tokenY
+	actualTitle := "Actual_" + tokenY + "Amount"
+	log.Info(message, actualTitle, actualAmount)
 }

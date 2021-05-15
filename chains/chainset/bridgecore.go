@@ -1,9 +1,11 @@
 package chainset
 
-import "github.com/rjman-self/sherpax-utils/msg"
+import (
+	"github.com/rjman-self/sherpax-utils/msg"
+	"strings"
+)
 
-type ChainType uint8
-
+type ChainType int
 const (
 	/// Eth-Like
 	EthLike = iota
@@ -15,14 +17,27 @@ const (
 	KusamaLike
 	/// ChainX V1 use Address Type
 	ChainXV1Like
-	/// ChainX V2 use MultiAddress Type
+	ChainXV1AssetLike
 	ChainXLike
+	ChainXAssetLike
 )
 
 type BridgeCore struct {
+	ChainName		string
 	ChainType		ChainType
-	FromChainId		string
-	ToChainId		string
+	ChainBased		string
+}
+
+func NewBridgeCore(name string) *BridgeCore {
+	prefix := GetChainPrefix(name)
+	chainType := GetChainType(prefix)
+	basedChain :=
+
+	return &BridgeCore{
+		ChainName: 		name,
+		ChainType:   	chainType,
+		ChainBased: 	basedChain,
+	}
 }
 
 var NativeLimit msg.ChainId = 100
@@ -31,3 +46,22 @@ var NativeLimit msg.ChainId = 100
 func IsNativeTransfer(id msg.ChainId) bool {
 	return id <= NativeLimit
 }
+
+func GetChainType(prefix string) ChainType {
+	for _, cs := range ChainSets {
+		if prefix == cs.Name {
+			return cs.Type
+		}
+	}
+	return -1
+}
+
+func GetChainPrefix(name string) string {
+	for _, j := range chainNameSets {
+		if strings.HasPrefix(name, j) {
+			return j
+		}
+	}
+	return NameUnimplemented
+}
+

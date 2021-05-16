@@ -34,16 +34,16 @@ func (bc *BridgeCore) InitializeClientPrefix(cli *client.Client) {
 		cli.SetPrefix(ss58.PolkadotPrefix)
 	case ChainXV1Like:
 		cli.SetPrefix(ss58.ChainXPrefix)
-		cli.Name = expand.ChainXpcx
+		cli.Name = expand.ClientNameChainX
 	case ChainXV1AssetLike:
 		cli.SetPrefix(ss58.ChainXPrefix)
-		cli.Name = expand.ChainXbtc
+		cli.Name = expand.ClientNameChainXAsset
 	case ChainXLike:
 		cli.SetPrefix(ss58.ChainXPrefix)
-		cli.Name = expand.ChainXpcx
+		cli.Name = expand.ClientNameChainX
 	case ChainXAssetLike:
 		cli.SetPrefix(ss58.ChainXPrefix)
-		cli.Name = expand.ChainXbtc
+		cli.Name = expand.ClientNameChainXAsset
 	default:
 		cli.SetPrefix(ss58.PolkadotPrefix)
 	}
@@ -53,7 +53,7 @@ func (bc *BridgeCore) MakeBalanceTransferCall(m msg.Message, meta *types.Metadat
 	recipient := bc.GetSubChainRecipient(m)
 
 	var c types.Call
-	sendAmount, err := bc.GetSendToSubChainAmount(m.Payload[0].([]byte), assetId)
+	sendAmount, err := bc.GetAmountToSub(m.Payload[0].([]byte), assetId)
 	if err != nil {
 		return types.Call{}, err
 	}

@@ -24,6 +24,7 @@ As the writer receives messages from the router, it constructs proposals. If a p
 */
 
 import (
+	"fmt"
 	"github.com/ChainSafe/log15"
 	"github.com/Rjman-self/BBridge/chains/chainset"
 	"github.com/centrifuge/go-substrate-rpc-client/v3/signature"
@@ -122,6 +123,8 @@ func InitializeChain(cfg *core.ChainConfig, logger log15.Logger, sysErr chan<- e
 	bc.InitializeClientPrefix(cli)
 
 	log15.Info("Initialize ChainInfo", "Prefix", cli.Prefix, "Name", cli.Name, "Id", cfg.Id)
+	fmt.Printf("chain: %v\n", bc.ChainInfo)
+
 
 	/// Set relayer parameters
 	relayer := NewRelayer((signature.KeyringPair)(*krp), otherRelayers, total, threshold, currentRelayer)

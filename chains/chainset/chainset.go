@@ -58,9 +58,9 @@ const(
 )
 
 type ChainInfo struct{
-	Prefix 			string
+	Prefix 					string
 	NativeToken 			string
-	Type 			ChainType
+	Type 					ChainType
 }
 
 var (

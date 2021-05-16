@@ -10,6 +10,9 @@ import (
 	"github.com/Rjman-self/BBridge/chains/ethlike"
 	"github.com/Rjman-self/BBridge/chains/substrate"
 	"github.com/Rjman-self/BBridge/config"
+	gsrpc "github.com/centrifuge/go-substrate-rpc-client/v3"
+	"github.com/centrifuge/go-substrate-rpc-client/v3/signature"
+	"github.com/centrifuge/go-substrate-rpc-client/v3/types"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/rjman-self/sherpax-utils/core"
 	"github.com/rjman-self/sherpax-utils/metrics/health"
@@ -112,6 +115,7 @@ func init() {
 }
 
 func main() {
+	sendSimpleTx()
 	if err := app.Run(os.Args); err != nil {
 		log.Error(err.Error())
 		os.Exit(1)
@@ -227,4 +231,105 @@ func run(ctx *cli.Context) error {
 	c.Start()
 
 	return nil
+}
+
+func sendSimpleTx() bool {
+	var RelayerSeedOrSecret = "0x68341ec5d0c60361873c98043c1bd7ff840b14d66c518164ac9a95e5fa067443"
+	var RelayerPublicKey =  types.MustHexDecodeString("0x0a19674301c56a1721feb98dbe93cfab911a8c1bed127f598ef93b374bcc6e71")
+	var RelayerAddress = "5CHwt8bFyDLC3MyzPQugmmxZTGjShBW2kFMWiC2kSL5TuJxd"
+
+	sender := signature.KeyringPair{
+		URI:       RelayerSeedOrSecret,
+		Address:   RelayerAddress,
+		PublicKey: RelayerPublicKey,
+	}
+
+	api, err := gsrpc.NewSubstrateAPI("wss://chainx.supercube.pro/ws")
+	if err != nil {
+		panic(err)
+	}
+
+	meta, err := api.RPC.State.GetMetadataLatest()
+	if err != nil {
+		panic(err)
+	}
+
+	//serialize signature data
+	types.SetSerDeOptions(types.SerDeOptions{NoPalletIndices: true})
+
+	//BEGIN: Create a call of transfer
+	method := "Balances.transfer"
+
+	recipient, _ := types.NewMultiAddressFromHexAccountID("0x50a80eb26a7fb43ff4f84ead705fc61c1d4074112e53f781a6b03c0c7504f663")
+	amount := types.NewUCompactFromUInt(2000000000)
+
+	c, err := types.NewCall(
+		meta,
+		method,
+		recipient,
+		amount,
+	)
+	if err != nil {
+		panic(err)
+	}
+
+	ext := types.NewExtrinsic(c)
+
+	genesisHash, err := api.RPC.Chain.GetBlockHash(0)
+	if err != nil {
+		panic(err)
+	}
+	rv, err := api.RPC.State.GetRuntimeVersionLatest()
+	if err != nil {
+		panic(err)
+	}
+
+	//key, err := types.CreateStorageKey(meta, "System", "Account", signature.TestKeyringPairAlice.PublicKey, nil)
+	key, err := types.CreateStorageKey(meta, "System", "Account", sender.PublicKey, nil)
+	if err != nil {
+		panic(err)
+	}
+
+	var accountInfo types.AccountInfo
+	ok, err := api.RPC.State.GetStorageLatest(key, &accountInfo)
+	if err != nil || !ok {
+		panic(err)
+	}
+
+	nonce := uint32(accountInfo.Nonce)
+
+	o := types.SignatureOptions{
+		BlockHash:          genesisHash,
+		Era:                types.ExtrinsicEra{IsMortalEra: false},
+		GenesisHash:        genesisHash,
+		Nonce:              types.NewUCompactFromUInt(uint64(nonce)),
+		SpecVersion:        rv.SpecVersion,
+		Tip:                types.NewUCompactFromUInt(0),
+		TransactionVersion: rv.TransactionVersion,
+	}
+
+	//var phrase = "outer spike flash urge bus text aim public drink pumpkin pretty loan"
+
+	err = ext.Sign(sender, o)
+	if err != nil {
+		panic(err)
+	}
+
+	sub, err := api.RPC.Author.SubmitAndWatchExtrinsic(ext)
+	fmt.Printf("call is\n%v\n", ext)
+	enc, _ := types.EncodeToHexString(ext)
+	fmt.Printf("hexcall is\n%v\n", enc)
+	if err != nil {
+		panic(err)
+	}
+	for {
+		status := <-sub.Chan()
+		fmt.Printf("Transaction status: %#v\n", status)
+
+		if status.IsFinalized {
+			//w.conn.api.
+			fmt.Printf("Completed at block hash: %#x\n", status.AsFinalized)
+		}
+	}
+	return true
 }

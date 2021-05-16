@@ -471,12 +471,12 @@ func (l *listener) findLostTxByAddress(currentBlock int64, e *models.ExtrinsicRe
 func (l *listener) getSendAmount(e *models.ExtrinsicResponse) (*big.Int, bool) {
 	// Construct parameters of message
 	amount, ok := big.NewInt(0).SetString(e.Amount, 10)
-	if !ok {
+	if !ok || amount.Uint64() == 0 {
 		fmt.Printf("parse transfer amount %v, amount.string %v\n", amount, amount.String())
 		return nil, false
 	}
 
-	sendAmount, err := l.bridgeCore.GetSendToEthChainAmount(amount.Bytes(), e.AssetId)
+	sendAmount, err := l.bridgeCore.GetAmountToEth(amount.Bytes(), e.AssetId)
 	if err != nil {
 		return nil, false
 	}
@@ -521,8 +521,11 @@ func (l *listener) logCrossChainTx (tokenX string, tokenY string, amount *big.In
 }
 
 func (l *listener) logReadyToSend(amount *big.Int, recipient []byte, e *models.ExtrinsicResponse) {
-	currency := l.bridgeCore.GetCurrency(e.AssetId)
-
+	currency, err := l.bridgeCore.GetCurrency(e.AssetId)
+	if err != nil {
+		fmt.Printf("unimplemented currency")
+		return
+	}
 	sendMessage := "Ready to send " + currency.Name + "..."
 	l.log.Info(LineLog, "Amount", amount, "FromId", l.chainId, "To", l.destId)
 	l.log.Info(sendMessage, "Amount", amount, "FromId", l.chainId, "To", l.destId)

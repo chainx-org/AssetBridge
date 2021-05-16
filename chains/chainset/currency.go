@@ -1,6 +1,9 @@
 package chainset
 
-import "github.com/rjman-self/substrate-go/expand/chainx/xevents"
+import (
+	"fmt"
+	"github.com/rjman-self/substrate-go/expand/chainx/xevents"
+)
 
 // The Eth-Like precision is 18 bits.
 //var SingleEthLike = 1e18
@@ -63,17 +66,17 @@ const (
 	XAssetId			xevents.AssetId = 999
 )
 
-func (bc *BridgeCore) GetCurrency(assetId xevents.AssetId) *Currency {
+func (bc *BridgeCore) GetCurrency(assetId xevents.AssetId) (*Currency, error) {
 	/// If token has assetId, return ChainX currency
 	for _, currency := range currencies {
-		if assetId == currency.AssetId {
-			return &currency
+		if assetId != 0 && assetId == currency.AssetId {
+			return &currency, nil
 		} else if assetId == 0 && bc.ChainInfo.NativeToken == currency.Name {
 			/// If token is native token, check the from chain
-			return &currency
+			return &currency, nil
 		}
 	}
 
 	/// Currency not found
-	return nil
+	return nil, fmt.Errorf("unimplemented currency")
 }

@@ -30,17 +30,23 @@ func (bc *BridgeCore) GetSubChainRecipient(m msg.Message) interface{} {
 	return multiAddressRecipient
 }
 
-func (bc *BridgeCore) GetSendToSubChainAmount(origin []byte, assetId xevents.AssetId) (*big.Int, error) {
-	currency := bc.GetCurrency(assetId)
-	return bc.CalculateSendToSubChainAmount(origin, currency.Difference, currency.FixedFee, currency.ExtraFeeRate)
+func (bc *BridgeCore) GetAmountToSub(origin []byte, assetId xevents.AssetId) (*big.Int, error) {
+	currency, err := bc.GetCurrency(assetId)
+	if err != nil {
+		return big.NewInt(0), err
+	}
+	return bc.CalculateAmountToSub(origin, currency.Difference, currency.FixedFee, currency.ExtraFeeRate)
 }
 
-func (bc *BridgeCore) GetSendToEthChainAmount(origin []byte, assetId xevents.AssetId) (*big.Int, error) {
-	currency := bc.GetCurrency(assetId)
-	return bc.CalculateSendToEthChainAmount(origin, currency.Difference, currency.FixedFee, currency.ExtraFeeRate)
+func (bc *BridgeCore) GetAmountToEth(origin []byte, assetId xevents.AssetId) (*big.Int, error) {
+	currency, err := bc.GetCurrency(assetId)
+	if err != nil {
+		return big.NewInt(0), err
+	}
+	return bc.CalculateAmountToEth(origin, currency.Difference, currency.FixedFee, currency.ExtraFeeRate)
 }
 
-func (bc *BridgeCore) CalculateSendToSubChainAmount(origin []byte, singleToken int64, fixedTokenFee int64, extraFeeRate int64) (*big.Int, error) {
+func (bc *BridgeCore) CalculateAmountToSub(origin []byte, singleToken int64, fixedTokenFee int64, extraFeeRate int64) (*big.Int, error) {
 	originAmount := big.NewInt(0).SetBytes(origin)
 	receiveAmount := big.NewInt(0).Div(originAmount, big.NewInt(singleToken))
 
@@ -57,8 +63,7 @@ func (bc *BridgeCore) CalculateSendToSubChainAmount(origin []byte, singleToken i
 	return sendAmount, nil
 }
 
-/// Sub-Chain to Eth-Chain
-func (bc *BridgeCore) CalculateSendToEthChainAmount(origin []byte, singleToken int64, fixedTokenFee int64, extraFeeRate int64) (*big.Int, error) {
+func (bc *BridgeCore) CalculateAmountToEth(origin []byte, singleToken int64, fixedTokenFee int64, extraFeeRate int64) (*big.Int, error) {
 	originAmount := big.NewInt(0).SetBytes(origin)
 	/// Calculate fixedFee and extraFee
 	fixedFee := big.NewInt(fixedTokenFee)

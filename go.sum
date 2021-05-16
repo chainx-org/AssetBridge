@@ -549,8 +549,8 @@ github.com/rjeczalik/notify v0.9.1 h1:CLCKso/QK1snAlnhNR/CNvNiFU2saUtjV0bx3EwNeC
 github.com/rjeczalik/notify v0.9.1/go.mod h1:rKwnCoCGeuQnwBtTSPL9Dad03Vh2n40ePRrjvIXnJho=
 github.com/rjman-self/sherpax-utils v1.0.1 h1:HbyMM9Hxd+ekgrjlGx+qDQR5W1/MH0SIvrpoZVfXo24=
 github.com/rjman-self/sherpax-utils v1.0.1/go.mod h1:PWTprgu7khXp7v9F5HVltoYcP5PvEs9lm1AD+suT23c=
-github.com/rjman-self/substrate-go v1.5.5 h1:M9ZiQbnd2LE0rD0ZPfi99eSMYWNUrd+lRs06xrJXTK8=
-github.com/rjman-self/substrate-go v1.5.5/go.mod h1:c44lpNtKCyo7sHwhR3dgFsGC15u3FPbP5CNJknBe7zU=
+github.com/rjman-self/substrate-go v1.5.7 h1:mtcozmPTjxBzIDoAR7g9z9NXf4wAJBkoOWnUUllTePg=
+github.com/rjman-self/substrate-go v1.5.7/go.mod h1:c44lpNtKCyo7sHwhR3dgFsGC15u3FPbP5CNJknBe7zU=
 github.com/rjmand/go-substrate-rpc-client/v2 v2.1.1-0.20210228120507-d15559aaddb1 h1:nRWoGtiklL8vxVn5pK8SV6MzRwKz+m88Pkxbhz0euDU=
 github.com/rjmand/go-substrate-rpc-client/v2 v2.1.1-0.20210228120507-d15559aaddb1/go.mod h1:opE+pB/SAyI9m2Y95pkgvtio/cf9LXq2lpW4aOQck9A=
 github.com/rogpeppe/fastuuid v0.0.0-20150106093220-6724a57986af/go.mod h1:XWv6SoW27p1b0cqNHllgS5HIMJraePCO15w5zCzIWYg=

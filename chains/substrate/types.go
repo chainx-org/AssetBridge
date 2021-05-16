@@ -259,7 +259,7 @@ func (w *writer) createNativeTx(m msg.Message) {
 }
 
 func (w *writer) createFungibleProposal(m msg.Message) (*proposal, error) {
-	sendAmount, err := w.bridgeCore.GetSendToSubChainAmount(m.Payload[0].([]byte), chainset.XAssetId)
+	sendAmount, err := w.bridgeCore.GetAmountToSub(m.Payload[0].([]byte), chainset.XAssetId)
 	if err != nil {
 		return nil, fmt.Errorf("create fungible proposal error, neg amount")
 	}

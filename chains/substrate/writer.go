@@ -245,7 +245,7 @@ func (w *writer) redeemTx(message *Msg) (bool, MultiSignTx) { w.UpdateMetadata()
 }
 
 func (w *writer) getCall(m msg.Message) (types.Call, *big.Int, bool, bool, MultiSignTx){
-	sendAmount, err := w.bridgeCore.GetSendToSubChainAmount(m.Payload[0].([]byte), 0)
+	sendAmount, err := w.bridgeCore.GetAmountToSub(m.Payload[0].([]byte), 0)
 	if err != nil {
 		return types.Call{}, nil, false, true, UnKnownError
 	}
@@ -254,7 +254,7 @@ func (w *writer) getCall(m msg.Message) (types.Call, *big.Int, bool, bool, Multi
 	recipient := w.bridgeCore.GetSubChainRecipient(m)
 
 	// Get parameters of Call
-	if m.Destination == chainset.IdPolkadot || m.Destination == chainset.IdKusama || m.Destination == chainset.IdChainXPCXV2{
+	if m.Destination == chainset.IdPolkadot || m.Destination == chainset.IdKusama || m.Destination == chainset.IdChainXPCXV2 {
 		c, err = w.bridgeCore.MakeBalanceTransferCall(m, &w.conn.meta, chainset.OriginAsset)
 		if err != nil {
 			return types.Call{}, nil, false, true, UnKnownError
@@ -330,8 +330,7 @@ func (w *writer) checkRedeem(m msg.Message, actualAmount *big.Int) (bool, MultiS
 
 func (w *writer) submitTx(c types.Call) {
 	// BEGIN: Get the essential information first
-	api, err := w.getApi()
-	w.checkErr("SubmitTx get api error", err)
+	api := w.conn.api
 
 	retryTimes := RedeemRetryLimit
 	for {

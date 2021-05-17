@@ -11,7 +11,7 @@ const (
 
 	// ChainXV1Like ChainX V1 use Address Type
 	ChainXV1Like
-	ChainXV1AssetLike
+	ChainXAssetV1Like
 
 	ChainXLike
 	ChainXAssetLike
@@ -22,7 +22,10 @@ const (
 	NameUnimplemented		string = "unimplemented"
 
 	NameBSC					string = "bsc_"
+	NameRopsten				string = "repsten_"
+	NameHeco				string = "heco_"
 	NameETH					string = "eth_"
+
 	NamePlaton				string = "platon_"
 	NameAlaya				string = "alaya_"
 
@@ -44,6 +47,7 @@ const (
 const(
 	TokenBNB	string = "BNB"
 	TokenETH	string = "ETH"
+	TokenHT		string = "HT"
 
 	TokenDOT	string = "DOT"
 	TokenKSM	string = "KSM"
@@ -66,11 +70,13 @@ type ChainInfo struct{
 var (
 	ChainSets = [...]ChainInfo{
 		{ NameBSC, 			TokenBNB, EthLike },
-		{ NameETH, 			TokenETH, EthLike },
+		{ NameRopsten, 		TokenETH, EthLike },
+		{ NameHeco, 			TokenETH, EthLike },
+		{ NameETH, 			TokenHT, 	EthLike },
 		{ NameKusama, 		TokenKSM, KusamaLike },
 		{ NamePolkadot,		TokenDOT, PolkadotLike },
 		{ NameChainXV1 , 		TokenPCX, ChainXV1Like},
-		{ NameChainXAssetV1,  TokenPCX, ChainXV1AssetLike},
+		{ NameChainXAssetV1,  TokenPCX, ChainXAssetV1Like},
 		{ NameChainXAsset,	TokenPCX, ChainXAssetLike},
 		{ NameChainXPCX, 		TokenPCX, ChainXLike},
 		{ NameChainX, 		TokenPCX, ChainXLike},

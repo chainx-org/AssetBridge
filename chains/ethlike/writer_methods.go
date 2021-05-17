@@ -129,7 +129,6 @@ func (w *writer) createErc20Proposal(m msg.Message) bool {
 
 	sendAmount, err := w.bridgeCore.GetAmountToEth(m.Payload[0].([]byte), chainset.XAssetId)
 	if err != nil {
-		log.Error("RedeemNegAmountError")
 		return false
 	}
 

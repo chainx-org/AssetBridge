@@ -1,7 +1,7 @@
 {
   "chains": [
     {
-      "name": "bsc",
+      "name": "bsc_bnb",
       "type": "ethereum",
       "id": "2",
       "endpoint": "https://data-seed-prebsc-1-s3.binance.org:8545",
@@ -14,10 +14,36 @@
       }
     },
     {
-      "name": "polkadot",
+      "name": "ropsten_eth",
+      "type": "ethereum",
+      "id": "3",
+      "endpoint": "https://ropsten.infura.io/v3/6eba092d312548fd99b7516d9828774d",
+      "from": "0x8114B66d176B2BebB84729385709445166D7A463",
+      "opts": {
+        "bridge": "0xA9fD48bC95ea31fFbda88c1c817CF96f302fab60",
+        "erc20Handler": "0xEfc6a0Aa8b42aDEb10b022a6DB82A2330d489292",
+        "http": "true",
+        "networkId": "3"
+      }
+    },
+    {
+      "name": "heco_ht",
+      "type": "ethereum",
+      "id": "4",
+      "endpoint": "https://http-testnet.hecochain.com",
+      "from": "0x8114B66d176B2BebB84729385709445166D7A463",
+      "opts": {
+        "bridge": "0x39b7FBbC38e4963A5cBCAd8d4A8ACbA21391CC55",
+        "erc20Handler": "0xf0723e55127406FcAA17C6B2E5d2e68459cF40a6",
+        "http": "true",
+        "networkId": "256"
+      }
+    },
+    {
+      "name": "chainx_pcx",
       "type": "substrate",
-      "id": "5",
-      "endpoint": "wss://dot.supercube.pro/ws",
+      "id": "12",
+      "endpoint": "ws://localhost:9977",
       "from": "5FNTYUQwxjrVE5zRRH1hKh6fZ72AosHB7ThVnNnq9Bv9BFjm",
       "opts": {
         "MultiSignAddress": "0x83b0e4664507e7072dd2b30e9c5f68a708979e741a965048fb1ccbc61bd331f5",
@@ -28,16 +54,16 @@
         "OtherRelayer2": "0x50a80eb26a7fb43ff4f84ead705fc61c1d4074112e53f781a6b03c0c7504f663",
         "OtherRelayer3": "0xa45a0ddd81da79f65cbcfeefc8e62382b1f56ccbbdd9533f77cdc49172cca33d",
         "OtherRelayer4": "0xe6c2b6c4a5d3a770814f3ebe99893d1bb66e8f0d086a2badfcbb481b043ada1a",
-        "ResourceId": "0x0000000000000000000000000000000000000000000000000000000000000002",
+        "ResourceId": "0x0000000000000000000000000000000000000000000000000000000000000003",
         "MaxWeight": "22698000000",
         "DestId": "2"
       }
     },
     {
-      "name": "chainxbtcV1",
+      "name": "sherpax_asset_xbtc",
       "type": "substrate",
-      "id": "3",
-      "endpoint": "wss://chainx.supercube.pro/ws",
+      "id": "14",
+      "endpoint": "ws://localhost:9977",
       "from": "5FNTYUQwxjrVE5zRRH1hKh6fZ72AosHB7ThVnNnq9Bv9BFjm",
       "opts": {
         "MultiSignAddress": "0x83b0e4664507e7072dd2b30e9c5f68a708979e741a965048fb1ccbc61bd331f5",
@@ -54,22 +80,12 @@
       }
     },
     {
-      "name": "chainxpcxV1",
+      "name": "sherpax_asset_xasset",
       "type": "substrate",
-      "id": "7",
-      "endpoint": "wss://chainx.supercube.pro/ws",
+      "id": "101",
+      "endpoint": "ws://localhost:9977",
       "from": "5FNTYUQwxjrVE5zRRH1hKh6fZ72AosHB7ThVnNnq9Bv9BFjm",
       "opts": {
-        "MultiSignAddress": "0x83b0e4664507e7072dd2b30e9c5f68a708979e741a965048fb1ccbc61bd331f5",
-        "TotalRelayer": "5",
-        "CurrentRelayerNumber": "3",
-        "MultiSignThreshold": "3",
-        "OtherRelayer1": "0x0a19674301c56a1721feb98dbe93cfab911a8c1bed127f598ef93b374bcc6e71",
-        "OtherRelayer2": "0x50a80eb26a7fb43ff4f84ead705fc61c1d4074112e53f781a6b03c0c7504f663",
-        "OtherRelayer3": "0xa45a0ddd81da79f65cbcfeefc8e62382b1f56ccbbdd9533f77cdc49172cca33d",
-        "OtherRelayer4": "0xe6c2b6c4a5d3a770814f3ebe99893d1bb66e8f0d086a2badfcbb481b043ada1a",
-        "ResourceId": "0x0000000000000000000000000000000000000000000000000000000000000003",
-        "MaxWeight": "22698000000",
         "DestId": "2"
       }
     }

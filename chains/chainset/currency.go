@@ -32,7 +32,10 @@ const (
 )
 
 // ExtraFeeRate Additional formalities rate excluding fixed handling fee
-var ExtraFeeRate int64 = 1000
+const (
+	ExtraFeeRate int64 = 1000
+	ExtraNoneFeeRate int64 = 0
+)
 
 type Currency struct {
 	/// Set the token of the native token to zero
@@ -47,12 +50,12 @@ var currencies = []Currency{
 	{OriginAsset, 	TokenKSM, 	DiffKSM, 		FixedKSMFee, ExtraFeeRate},
 	{OriginAsset, 	TokenDOT, 	DiffDOT, 		FixedDOTFee, ExtraFeeRate},
 	{OriginAsset, 	TokenPCX, 	DiffPCX, 		FixedPCXFee, ExtraFeeRate},
-	{AssetXBTC, 		TokenXBTC	, 	DiffXBTC, 	0,			 0},
-	{AssetXBNB, 		TokenXBNB, 	DiffXAsset, 	0,			 0},
-	{AssetXETH, 		TokenXETH, 	DiffXAsset, 	0,			 0},
-	{AssetXUSD, 		TokenXUSD, 	DiffXAsset, 	0,			 0},
-	{AssetXHT, 		TokenXHT, 	DiffXAsset, 	0,			 0},
-	{XAssetId, 		TokenXAsset, 	DiffXAsset, 	0,			 0},
+	{AssetXBTC, 		TokenXBTC	, 	DiffXBTC, 	0,			 ExtraNoneFeeRate},
+	{AssetXBNB, 		TokenXBNB, 	DiffXAsset, 	0,			 ExtraNoneFeeRate},
+	{AssetXETH, 		TokenXETH, 	DiffXAsset, 	0,			 ExtraNoneFeeRate},
+	{AssetXUSD, 		TokenXUSD, 	DiffXAsset, 	0,			 ExtraNoneFeeRate},
+	{AssetXHT, 		TokenXHT, 	DiffXAsset, 	0,			 ExtraNoneFeeRate},
+	{XAssetId, 		TokenXAsset, 	DiffXAsset, 	0,			 ExtraNoneFeeRate},
 }
 
 /// AssetId Type

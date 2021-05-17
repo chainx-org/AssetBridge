@@ -14,6 +14,7 @@ import (
 	"github.com/rjman-self/sherpax-utils/core"
 	metrics "github.com/rjman-self/sherpax-utils/metrics/types"
 	"github.com/rjman-self/sherpax-utils/msg"
+	"github.com/rjman-self/substrate-go/expand/chainx/xevents"
 	utils2 "github.com/rjman-self/substrate-go/utils"
 	"math/big"
 	"sync"
@@ -26,7 +27,6 @@ var TerminatedError = errors.New("terminated")
 
 const genesisBlock = 0
 const RoundInterval = time.Second * 6
-const xParameter uint8 = 255
 
 type writer struct {
 	meta       *types.Metadata
@@ -222,16 +222,12 @@ func (w *writer) redeemTx(message *Msg) (bool, MultiSignTx) { w.UpdateMetadata()
 			}
 
 			mc, err := types.NewCall(w.meta, string(utils.MultisigAsMulti), w.relayer.multiSignThreshold, w.relayer.otherSignatories, maybeTimePoint, EncodeCall(c), false, maxWeight)
-
 			if err != nil {
 				w.logErr(NewMultiCallError, err)
 			}
-			///END: Create a call of MultiSignTransfer
 
-			///BEGIN: Submit a MultiSignExtrinsic to Polkadot
 			w.submitTx(mc)
 			return false, NotExecuted
-			///END: Submit a MultiSignExtrinsic to Polkadot
 		} else {
 			finished, executed := w.checkRedeem(m, actualAmount)
 			if finished {
@@ -245,65 +241,25 @@ func (w *writer) redeemTx(message *Msg) (bool, MultiSignTx) { w.UpdateMetadata()
 }
 
 func (w *writer) getCall(m msg.Message) (types.Call, *big.Int, bool, bool, MultiSignTx){
-	sendAmount, err := w.bridgeCore.GetAmountToSub(m.Payload[0].([]byte), 0)
+	var c types.Call
+	var assetId xevents.AssetId
+
+	if m.Destination == chainset.IdChainXBTCV1 || m.Destination == chainset.IdChainXBTCV2 {
+		assetId = chainset.AssetXBTC
+	} else {
+		assetId = chainset.OriginAsset
+	}
+
+	/// Get SendAmount
+	sendAmount, err := w.bridgeCore.GetAmountToSub(m.Payload[0].([]byte), assetId)
 	if err != nil {
+		w.log.Error(RedeemNegAmountError, "Error", err)
 		return types.Call{}, nil, false, true, UnKnownError
 	}
 
-	var c types.Call
-	recipient := w.bridgeCore.GetSubChainRecipient(m)
-
-	// Get parameters of Call
-	if m.Destination == chainset.IdPolkadot || m.Destination == chainset.IdKusama || m.Destination == chainset.IdChainXPCXV2 {
-		c, err = w.bridgeCore.MakeBalanceTransferCall(m, &w.conn.meta, chainset.OriginAsset)
-		if err != nil {
-			return types.Call{}, nil, false, true, UnKnownError
-		}
-	} else if m.Destination == chainset.IdChainXBTCV1 {
-		// Create a XAssets.Transfer call
-		assetId := types.NewUCompactFromUInt(uint64(chainset.AssetXBTC))
-		c, err = types.NewCall(
-			w.meta,
-			string(utils.XAssetsTransferMethod),
-			xParameter,
-			recipient,
-			assetId,
-			types.NewUCompact(sendAmount),
-		)
-		if err != nil {
-			w.log.Error(NewXAssetsTransferCallError, "Error", err)
-
-		}
-	} else if m.Destination == chainset.IdChainXBTCV2 {
-		// Create a XAssets.Transfer call
-		assetId := types.NewUCompactFromUInt(uint64(chainset.AssetXBTC))
-
-		c, err = types.NewCall(
-			w.meta,
-			string(utils.XAssetsTransferMethod),
-			recipient,
-			assetId,
-			types.NewUCompact(sendAmount),
-		)
-		if err != nil {
-			w.log.Error(NewXAssetsTransferCallError, "Error", err)
-			return types.Call{}, nil, false, true, UnKnownError
-		}
-	} else if m.Destination == chainset.IdChainXPCXV1 {
-		c, err = types.NewCall(
-			w.meta,
-			string(utils.BalancesTransferKeepAliveMethod),
-			xParameter,
-			recipient,
-			types.NewUCompact(sendAmount),
-		)
-		if err != nil {
-			w.log.Error(NewBalancesTransferKeepAliveCallError, "Error", err)
-			return types.Call{}, nil, false, true, UnKnownError
-		}
-	} else {
-		/// Other Chain
-		w.log.Error("chainId set wrong", "ChainId", w.listener.chainId)
+	c, err = w.bridgeCore.MakeCrossChainTansferCall(m, &w.conn.meta, assetId)
+	if err != nil {
+		w.log.Error(NewCrossChainTransferCallError, "Error", err)
 		return types.Call{}, nil, false, true, UnKnownError
 	}
 	return c, sendAmount, true, false, NotExecuted

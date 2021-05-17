@@ -13,15 +13,20 @@ import (
 /// ChainId Type
 const (
 	IdBSC       			msg.ChainId = 2
-	IdKusama    			msg.ChainId = 1
-	IdPolkadot  			msg.ChainId = 5
-	IdChainXBTCV1 			msg.ChainId = 3
-	IdChainXPCXV1 			msg.ChainId = 7
-	IdChainXBTCV2     		msg.ChainId = 9
-	IdChainXPCXV2 			msg.ChainId = 11
+	IdRopsten				msg.ChainId = 3
+	IdHeco					msg.ChainId = 4
+
+	IdKusama    			msg.ChainId = 21
+	IdPolkadot  			msg.ChainId = 22
+	IdChainXPCXV1 			msg.ChainId = 11
+	IdChainXPCXV2 			msg.ChainId = 12
+	IdChainXBTCV1 			msg.ChainId = 13
+	IdChainXBTCV2     		msg.ChainId = 14
 )
 
 var NativeLimit msg.ChainId = 100
+
+const XParameter uint8 = 255
 
 // IsNativeTransfer Chain id distinguishes Tx types(Native, Fungible...)
 func IsNativeTransfer(id msg.ChainId) bool {
@@ -35,7 +40,7 @@ func (bc *BridgeCore) InitializeClientPrefix(cli *client.Client) {
 	case ChainXV1Like:
 		cli.SetPrefix(ss58.ChainXPrefix)
 		cli.Name = expand.ClientNameChainX
-	case ChainXV1AssetLike:
+	case ChainXAssetV1Like:
 		cli.SetPrefix(ss58.ChainXPrefix)
 		cli.Name = expand.ClientNameChainXAsset
 	case ChainXLike:
@@ -49,27 +54,85 @@ func (bc *BridgeCore) InitializeClientPrefix(cli *client.Client) {
 	}
 }
 
+func (bc *BridgeCore) MakeCrossChainTansferCall(m msg.Message, meta *types.Metadata, assetId xevents.AssetId) (types.Call, error) {
+	switch bc.ChainInfo.Type {
+	case ChainXAssetLike:
+		return bc.MakeXAssetTransferCall(m, meta, assetId)
+	case ChainXAssetV1Like:
+		return bc.MakeXAssetTransferCall(m, meta, assetId)
+	default:
+		return bc.MakeBalanceTransferCall(m, meta, assetId)
+	}
+}
+
 func (bc *BridgeCore) MakeBalanceTransferCall(m msg.Message, meta *types.Metadata, assetId xevents.AssetId) (types.Call, error) {
+	/// Get Recipient
 	recipient := bc.GetSubChainRecipient(m)
 
-	var c types.Call
+	/// Get Amount
 	sendAmount, err := bc.GetAmountToSub(m.Payload[0].([]byte), assetId)
 	if err != nil {
 		return types.Call{}, err
 	}
 
-	c, err = types.NewCall(
-		meta,
-		string(utils.BalancesTransferKeepAliveMethod),
-		recipient,
-		types.NewUCompact(sendAmount),
-	)
+	/// Get Call
+	var c types.Call
+	if bc.ChainInfo.Type == ChainXV1Like {
+		c, err = types.NewCall(
+			meta,
+			string(utils.BalancesTransferKeepAliveMethod),
+			XParameter,
+			recipient,
+			types.NewUCompact(sendAmount),
+		)
+	} else {
+		c, err = types.NewCall(
+			meta,
+			string(utils.BalancesTransferKeepAliveMethod),
+			recipient,
+			types.NewUCompact(sendAmount),
+		)
+	}
 	if err != nil {
 		return types.Call{}, err
 	}
+
 	return c, nil
 }
 
-func (bc *BridgeCore) MakeXAssetTransferCall() {
+func (bc *BridgeCore) MakeXAssetTransferCall(m msg.Message, meta *types.Metadata, assetId xevents.AssetId) (types.Call, error) {
+	/// GetRecipient
+	recipient := bc.GetSubChainRecipient(m)
 
+	/// GetAmount
+	sendAmount, err := bc.GetAmountToSub(m.Payload[0].([]byte), assetId)
+	if err != nil {
+		return types.Call{}, err
+	}
+
+	/// Get Call
+	var c types.Call
+	if bc.ChainInfo.Type == ChainXAssetV1Like {
+		c, err = types.NewCall(
+			meta,
+			string(utils.XAssetsTransferMethod),
+			XParameter,
+			recipient,
+			types.NewUCompactFromUInt(uint64(assetId)),
+			types.NewUCompact(sendAmount),
+		)
+	} else {
+		c, err = types.NewCall(
+			meta,
+			string(utils.XAssetsTransferMethod),
+			recipient,
+			types.NewUCompactFromUInt(uint64(assetId)),
+			types.NewUCompact(sendAmount),
+		)
+	}
+	if err != nil {
+		return types.Call{}, err
+	}
+
+	return c, nil
 }

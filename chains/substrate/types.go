@@ -45,6 +45,7 @@ const (
 	NewBalancesTransferCallError          	string = "New Balances.transfer err"
 	NewBalancesTransferKeepAliveCallError 	string = "New Balances.transferKeepAlive err"
 	NewXAssetsTransferCallError           	string = "New XAssets.Transfer err"
+	NewCrossChainTransferCallError          string = "New Cross-Chain Transfer err"
 	NewMultiCallError                     	string = "New MultiCall err"
 	NewApiError                           	string = "New api error"
 	SignMultiSignTxFailed                 	string = "Sign MultiSignTx failed"

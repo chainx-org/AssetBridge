@@ -112,6 +112,9 @@ github.com/c-bata/go-prompt v0.2.2/go.mod h1:VzqtzE2ksDBcdln8G7mk2RX9QyGjH+OVqOC
 github.com/casbin/casbin/v2 v2.1.2/go.mod h1:YcPU1XXisHhLzuxH9coDNf2FbKpjGlbCg3n9yuLkIJQ=
 github.com/cenkalti/backoff v2.2.1+incompatible/go.mod h1:90ReRw6GdpyfrHakVjL/QHaoyV4aDUVVkXQJJJ3NXXM=
 github.com/census-instrumentation/opencensus-proto v0.2.1/go.mod h1:f6KPmirojxKA12rnyqOA5BBL4O983OfeGPqjHWSTneU=
+github.com/centrifuge/go-substrate-rpc-client v1.1.0 h1:cpfG7KKwy+n7FRb1LkiMYwi6e4gwzaooGfPIzXXQj6w=
+github.com/centrifuge/go-substrate-rpc-client v2.0.0+incompatible h1:FvPewruOgelqA/DVBdX7/Q6znUGGQ+g0ciG5tA2Fk98=
+github.com/centrifuge/go-substrate-rpc-client v2.0.0+incompatible/go.mod h1:GBMLH8MQs5g4FcrytcMm9uRgBnTL1LIkNTue6lUPhZU=
 github.com/centrifuge/go-substrate-rpc-client/v2 v2.1.0/go.mod h1:FvTQxAPFHIgGYsmNciyw8cddwV+KzmIUJNti0VR9+P4=
 github.com/centrifuge/go-substrate-rpc-client/v3 v3.0.0 h1:nwmK0bGIN67YBkqW/nAhgyhkCOv1nrFS3otY0qoQFeE=
 github.com/centrifuge/go-substrate-rpc-client/v3 v3.0.0/go.mod h1:AwGxOMdXSKLXN+Ks7/nwyfNcOgnXufaP7TV8QZmEyS4=
@@ -298,6 +301,10 @@ github.com/gtank/ristretto255 v0.1.2 h1:JEqUCPA1NvLq5DwYtuzigd7ss8fwbYay9fi4/5uM
 github.com/gtank/ristretto255 v0.1.2/go.mod h1:Ph5OpO6c7xKUGROZfWVLiJf9icMDwUeIvY4OmlYW69o=
 github.com/hacpy/chainbridge-substrate-events v1.0.0 h1:mJmear8MMtaL/1jdcsRXbuxVBxFtMcqGi1uUHXbss2o=
 github.com/hacpy/chainbridge-substrate-events v1.0.0/go.mod h1:g7dBztTtT766hz38eykg2ADE3kn4gxgjKnCWGKLANDQ=
+github.com/hacpy/go-ethereum v1.13.0 h1:CIYs8t62IVIXz+TwPioXORrePk35XY0EQTqEzW+0eMk=
+github.com/hacpy/go-ethereum v1.13.0/go.mod h1:kKQ/K8tOtrUMYb49lcL7tVc2JBuvtwSxzy7MmOM/cS4=
+github.com/hacpy/go-substrate-rpc-client v1.1.0 h1:asv6BrgzGo7HJQfARABj4Bl3Qc+TbibQYRupFcEr70Q=
+github.com/hacpy/go-substrate-rpc-client v1.1.0/go.mod h1:1LNWh8cyNYXcXritcjovsgKX8UPyLv+WA4lW4dlJAWM=
 github.com/hashicorp/consul/api v1.1.0/go.mod h1:VmuI/Lkw1nC05EYQWNKwWGbkg+FbDBtguAZLlVdkD9Q=
 github.com/hashicorp/consul/api v1.3.0/go.mod h1:MmDNSzIMUjNpY/mQ398R4bk2FnqQLoPndWW5VkKPlCE=
 github.com/hashicorp/consul/sdk v0.1.1/go.mod h1:VKf9jXwCTEY1QZP2MOLRhb5i/I/ssyNV1vwHyQBF0x8=
@@ -333,6 +340,7 @@ github.com/huandu/xstrings v1.3.2 h1:L18LIDzqlW6xN2rEkpdV8+oL/IXWJ1APd+vsdYy4Wdw
 github.com/huandu/xstrings v1.3.2/go.mod h1:y5/lhBue+AyNmUVz9RLU9xbLR0o4KIIExikq4ovT0aE=
 github.com/hudl/fargo v1.3.0/go.mod h1:y3CKSmjA+wD2gak7sUSXTAoopbhU08POFhmITJgmKTg=
 github.com/huin/goupnp v1.0.0/go.mod h1:n9v9KO1tAxYH82qOn+UTIFQDmx5n1Zxd/ClZDMX7Bnc=
+github.com/huin/goupnp v1.0.1-0.20200620063722-49508fba0031/go.mod h1:nNs7wvRfN1eKaMknBydLNQU6146XQim8t4h+q90biWo=
 github.com/huin/goupnp v1.0.1-0.20210310174557-0ca763054c88 h1:bcAj8KroPf552TScjFPIakjH2/tdIrIH8F+cc4v4SRo=
 github.com/huin/goupnp v1.0.1-0.20210310174557-0ca763054c88/go.mod h1:nNs7wvRfN1eKaMknBydLNQU6146XQim8t4h+q90biWo=
 github.com/huin/goutil v0.0.0-20170803182201-1ca381bf3150/go.mod h1:PpLOETDnJ0o3iZrZfqZzyLl6l7F3c6L1oWn7OICBi6o=
@@ -547,6 +555,8 @@ github.com/rcrowley/go-metrics v0.0.0-20181016184325-3113b8401b8a/go.mod h1:bCqn
 github.com/retailnext/hllpp v1.0.1-0.20180308014038-101a6d2f8b52/go.mod h1:RDpi1RftBQPUCDRw6SmxeaREsAaRKnOclghuzp/WRzc=
 github.com/rjeczalik/notify v0.9.1 h1:CLCKso/QK1snAlnhNR/CNvNiFU2saUtjV0bx3EwNeCE=
 github.com/rjeczalik/notify v0.9.1/go.mod h1:rKwnCoCGeuQnwBtTSPL9Dad03Vh2n40ePRrjvIXnJho=
+github.com/rjman-self/platdot-utils v1.4.0 h1:cyvO5Z8H9bS+pHthr36tiYYYNBtHfqaKAbYUtM3M3qA=
+github.com/rjman-self/platdot-utils v1.4.0/go.mod h1:+RWqDPeubxxDpIgoCp7LxPn5e6B+mogkcx9F9HOzx+Q=
 github.com/rjman-self/sherpax-utils v1.0.1 h1:HbyMM9Hxd+ekgrjlGx+qDQR5W1/MH0SIvrpoZVfXo24=
 github.com/rjman-self/sherpax-utils v1.0.1/go.mod h1:PWTprgu7khXp7v9F5HVltoYcP5PvEs9lm1AD+suT23c=
 github.com/rjman-self/substrate-go v1.5.7 h1:mtcozmPTjxBzIDoAR7g9z9NXf4wAJBkoOWnUUllTePg=
@@ -659,6 +669,7 @@ golang.org/x/crypto v0.0.0-20191206172530-e9b2fee46413/go.mod h1:LzIPMQfyMNhhGPh
 golang.org/x/crypto v0.0.0-20200115085410-6d4e4cb37c7d/go.mod h1:LzIPMQfyMNhhGPhUkYOs5KpL4U8rLKemX1yGLhDgUto=
 golang.org/x/crypto v0.0.0-20200510223506-06a226fb4e37/go.mod h1:LzIPMQfyMNhhGPhUkYOs5KpL4U8rLKemX1yGLhDgUto=
 golang.org/x/crypto v0.0.0-20200622213623-75b288015ac9/go.mod h1:LzIPMQfyMNhhGPhUkYOs5KpL4U8rLKemX1yGLhDgUto=
+golang.org/x/crypto v0.0.0-20200709230013-948cd5f35899/go.mod h1:LzIPMQfyMNhhGPhUkYOs5KpL4U8rLKemX1yGLhDgUto=
 golang.org/x/crypto v0.0.0-20200728195943-123391ffb6de/go.mod h1:LzIPMQfyMNhhGPhUkYOs5KpL4U8rLKemX1yGLhDgUto=
 golang.org/x/crypto v0.0.0-20200820211705-5c72a883971a/go.mod h1:LzIPMQfyMNhhGPhUkYOs5KpL4U8rLKemX1yGLhDgUto=
 golang.org/x/crypto v0.0.0-20201221181555-eec23a3978ad/go.mod h1:jdWPYTVW3xRLrWPugEBEK3UY2ZEsg3UU495nc5E+M+I=

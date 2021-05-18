@@ -285,10 +285,10 @@ func (w *writer) createFungibleProposal(m msg.Message) (*proposal, error) {
 		types.NewUCompact(sendAmount),
 		m.ResourceId,
 	)
-
 	if err != nil {
 		return nil, err
 	}
+
 	if w.extendCall {
 		eRID, err := types.EncodeToBytes(m.ResourceId)
 		if err != nil {

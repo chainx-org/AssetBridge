@@ -43,7 +43,7 @@
       "name": "sherpax_pcx",
       "type": "substrate",
       "id": "12",
-      "endpoint": "ws://localhost:9977",
+      "endpoint": "ws://localhost:8087",
       "from": "12pkkkKCovEzByPTjjK1qtKwPi1Pto1AX519UxTU4FJx6iGJ",
       "opts": {
         "MultiSignAddress": "0x83b0e4664507e7072dd2b30e9c5f68a708979e741a965048fb1ccbc61bd331f5",
@@ -63,7 +63,7 @@
       "name": "sherpax_asset_xbtc",
       "type": "substrate",
       "id": "14",
-      "endpoint": "ws://localhost:9977",
+      "endpoint": "ws://localhost:8087",
       "from": "12pkkkKCovEzByPTjjK1qtKwPi1Pto1AX519UxTU4FJx6iGJ",
       "opts": {
         "MultiSignAddress": "0x83b0e4664507e7072dd2b30e9c5f68a708979e741a965048fb1ccbc61bd331f5",
@@ -83,10 +83,30 @@
       "name": "sherpax_asset_xasset",
       "type": "substrate",
       "id": "101",
-      "endpoint": "ws://localhost:9977",
+      "endpoint": "ws://localhost:8087",
       "from": "12pkkkKCovEzByPTjjK1qtKwPi1Pto1AX519UxTU4FJx6iGJ",
       "opts": {
         "DestId": "2"
+      }
+    },
+    {
+      "name": "sherpax_asset_xasset",
+      "type": "substrate",
+      "id": "102",
+      "endpoint": "ws://localhost:8087",
+      "from": "12pkkkKCovEzByPTjjK1qtKwPi1Pto1AX519UxTU4FJx6iGJ",
+      "opts": {
+        "DestId": "3"
+      }
+    },
+    {
+      "name": "sherpax_asset_xasset",
+      "type": "substrate",
+      "id": "103",
+      "endpoint": "ws://localhost:8087",
+      "from": "12pkkkKCovEzByPTjjK1qtKwPi1Pto1AX519UxTU4FJx6iGJ",
+      "opts": {
+        "DestId": "4"
       }
     }
   ]

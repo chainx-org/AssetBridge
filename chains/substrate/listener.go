@@ -439,12 +439,19 @@ func (l *listener) dealBlockTx(resp *models.BlockResponse, currentBlock int64) {
 
 			depositNonce, _ := strconv.ParseInt(strconv.FormatInt(currentBlock, 10)+strconv.FormatInt(int64(e.ExtrinsicIndex), 10), 10, 64)
 
+			rId ,err := l.bridgeCore.AssetIdToResourceId(l.conn.api, &l.conn.meta, e.AssetId)
+			if err != nil {
+				fmt.Println("parse AssetId err")
+				continue
+			}
+			fmt.Printf("ResourceId from %v is %v\n", rId, msg.ResourceIdFromSlice(rId))
+
 			m := msg.NewNativeTransfer(
 				l.chainId,
 				l.destId,
 				msg.Nonce(depositNonce),
 				sendAmount,
-				l.resourceId,
+				msg.ResourceIdFromSlice(rId),
 				recipient[:],
 			)
 			l.logReadyToSend(sendAmount, recipient, e)

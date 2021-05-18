@@ -21,5 +21,11 @@ send "111\r"
 expect "*>"
 send "111\r"
 
+expect "*>"
+send "111\r"
+
+expect "*>"
+send "111\r"
+
 interact
 

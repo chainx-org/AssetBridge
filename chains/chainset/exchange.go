@@ -14,7 +14,7 @@ func (bc *BridgeCore) GetSubChainRecipient(m msg.Message) interface{} {
 	var addressRecipient types.Address
 
 	// TODO: modify deal method
-	if m.Source == IdBSC {
+	if m.Source == IdBSC || m.Source == IdRopsten || m.Source == IdHeco {
 		multiAddressRecipient = types.NewMultiAddressFromAccountID(m.Payload[1].([]byte))
 		addressRecipient = types.NewAddressFromAccountID(m.Payload[1].([]byte))
 	} else {

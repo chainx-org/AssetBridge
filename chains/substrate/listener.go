@@ -58,7 +58,7 @@ var ErrBlockNotReady = errors.New("required result to be 32 bytes, but got 0")
 const InitCapacity = 100
 
 var BlockRetryInterval = time.Second * 5
-var BlockRetryLimit = 30
+var BlockRetryLimit = 20
 var RedeemRetryLimit = 15
 
 func NewListener(conn *Connection, name string, id msg.ChainId, startBlock uint64, endBlock uint64, lostAddress string, log log15.Logger, bs blockstore.Blockstorer,
@@ -291,13 +291,14 @@ func (l *listener) processBlock(currentBlock int64) error {
 	retryTimes := BlockRetryLimit
 	for {
 		if retryTimes == 0 {
-			l.logInfo(ProcessBlockError, currentBlock)
-			return nil
+			return fmt.Errorf(ProcessBlockError)
 		}
 
 		resp, err := l.client.GetBlockByNumber(currentBlock)
 		if err != nil {
-			l.logErr(GetBlockByNumberError, err)
+			if retryTimes == BlockRetryLimit / 2 {
+				l.logErr(GetBlockByNumberError, err)
+			}
 			time.Sleep(time.Second)
 			retryTimes--
 			continue

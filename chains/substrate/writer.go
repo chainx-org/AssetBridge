@@ -183,7 +183,7 @@ func (w *writer) redeemTx(message *Msg) (bool, MultiSignTx) { w.UpdateMetadata()
 			for _, ms := range w.listener.msTxAsMulti {
 				// Validate parameter
 				var destAddress string
-				if m.Source == chainset.IdBSC {
+				if m.Source == chainset.IdBSC || m.Source == chainset.IdRopsten || m.Source == chainset.IdHeco{
 					dest := types.NewAddressFromAccountID(m.Payload[1].([]byte)).AsAccountID
 					destAddress = utils2.BytesToHex(dest[:])
 				} else {
@@ -269,7 +269,7 @@ func (w *writer) checkRedeem(m msg.Message, actualAmount *big.Int) (bool, MultiS
 	for _, ms := range w.listener.msTxAsMulti {
 		// Validate parameter
 		var destAddress string
-		if m.Source == chainset.IdBSC {
+		if m.Source == chainset.IdBSC || m.Source == chainset.IdRopsten || m.Source == chainset.IdHeco {
 			dest := types.NewAddressFromAccountID(m.Payload[1].([]byte)).AsAccountID
 			destAddress = utils2.BytesToHex(dest[:])
 		} else {

@@ -260,7 +260,7 @@ func (l *listener) logBlock(currentBlock uint64) {
 	if currentBlock % 5 == 0 {
 		message := l.cfg.name + " listening..."
 		l.log.Debug(message, "Block", currentBlock)
-		if currentBlock % 6000 == 0 {
+		if currentBlock % 3000 == 0 {
 			l.log.Info(message, "Block", currentBlock)
 		}
 	}

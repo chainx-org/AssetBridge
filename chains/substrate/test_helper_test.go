@@ -14,7 +14,7 @@ package substrate
 //	"github.com/ChainSafe/log15"
 //	"github.com/centrifuge/go-substrate-rpc-client/v3/types"
 //	"github.com/ethereum/go-ethereum/common/hexutil"
-//	utils "github.com/Rjman-self/BBridge/shared/substrate"
+//	utils "github.com/chainx-org/AssetBridge/shared/substrate"
 //)
 //
 //const TestEndpoint = "ws://127.0.0.1:9944"

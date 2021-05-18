@@ -12,11 +12,11 @@ import (
 
 	log "github.com/ChainSafe/log15"
 	gokeystore "github.com/ethereum/go-ethereum/accounts/keystore"
-	"github.com/Rjman-self/BBridge/config"
-	"github.com/rjman-self/sherpax-utils/crypto"
-	"github.com/rjman-self/sherpax-utils/crypto/secp256k1"
-	"github.com/rjman-self/sherpax-utils/crypto/sr25519"
-	"github.com/rjman-self/sherpax-utils/keystore"
+	"github.com/chainx-org/AssetBridge/config"
+	"github.com/rjman-ljm/sherpax-utils/crypto"
+	"github.com/rjman-ljm/sherpax-utils/crypto/secp256k1"
+	"github.com/rjman-ljm/sherpax-utils/crypto/sr25519"
+	"github.com/rjman-ljm/sherpax-utils/keystore"
 	"github.com/urfave/cli/v2"
 )
 

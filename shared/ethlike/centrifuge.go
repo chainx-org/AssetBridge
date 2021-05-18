@@ -5,7 +5,7 @@ package utils
 
 import (
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/Rjman-self/BBridge/bindings/CentrifugeAsset"
+	"github.com/chainx-org/AssetBridge/bindings/CentrifugeAsset"
 )
 
 func DeployAssetStore(client *Client) (common.Address, error) {

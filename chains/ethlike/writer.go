@@ -5,11 +5,11 @@ package ethlike
 
 import (
 	"github.com/ChainSafe/log15"
-	"github.com/Rjman-self/BBridge/bindings/Bridge"
-	"github.com/Rjman-self/BBridge/chains/chainset"
-	"github.com/rjman-self/sherpax-utils/core"
-	metrics "github.com/rjman-self/sherpax-utils/metrics/types"
-	"github.com/rjman-self/sherpax-utils/msg"
+	"github.com/chainx-org/AssetBridge/bindings/Bridge"
+	"github.com/chainx-org/AssetBridge/chains/chainset"
+	"github.com/rjman-ljm/sherpax-utils/core"
+	metrics "github.com/rjman-ljm/sherpax-utils/metrics/types"
+	"github.com/rjman-ljm/sherpax-utils/msg"
 )
 
 var _ core.Writer = &writer{}

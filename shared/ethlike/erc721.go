@@ -7,8 +7,8 @@ import (
 	"math/big"
 
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/Rjman-self/BBridge/bindings/ERC721Handler"
-	"github.com/Rjman-self/BBridge/bindings/ERC721MinterBurnerPauser"
+	"github.com/chainx-org/AssetBridge/bindings/ERC721Handler"
+	"github.com/chainx-org/AssetBridge/bindings/ERC721MinterBurnerPauser"
 )
 
 // DeployMintAndApprove deploys a new erc721 contract, mints to the deployer, and approves the erc20 handler to transfer those token.

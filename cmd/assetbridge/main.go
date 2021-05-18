@@ -7,14 +7,14 @@ import (
 	"errors"
 	"fmt"
 	log "github.com/ChainSafe/log15"
-	"github.com/Rjman-self/BBridge/chains/ethlike"
-	"github.com/Rjman-self/BBridge/chains/substrate"
-	"github.com/Rjman-self/BBridge/config"
+	"github.com/chainx-org/AssetBridge/chains/ethlike"
+	"github.com/chainx-org/AssetBridge/chains/substrate"
+	"github.com/chainx-org/AssetBridge/config"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
-	"github.com/rjman-self/sherpax-utils/core"
-	"github.com/rjman-self/sherpax-utils/metrics/health"
-	metrics "github.com/rjman-self/sherpax-utils/metrics/types"
-	"github.com/rjman-self/sherpax-utils/msg"
+	"github.com/rjman-ljm/sherpax-utils/core"
+	"github.com/rjman-ljm/sherpax-utils/metrics/health"
+	metrics "github.com/rjman-ljm/sherpax-utils/metrics/types"
+	"github.com/rjman-ljm/sherpax-utils/msg"
 	"github.com/urfave/cli/v2"
 	"net/http"
 	"os"
@@ -98,10 +98,10 @@ var (
 // init initializes CLI
 func init() {
 	app.Action = run
-	app.Copyright = "Copyright 2021 BBridge Authors"
-	app.Name = "BBridge"
-	app.Usage = "BBridge"
-	app.Authors = []*cli.Author{{Name: "BBridge 2021"}}
+	app.Copyright = "Copyright 2021 ChainX Authors"
+	app.Name = "AssetBridge"
+	app.Usage = "AssetBridge"
+	app.Authors = []*cli.Author{{Name: "AssetBridge 2021"}}
 	app.Version = Version
 	app.EnableBashCompletion = true
 	app.Commands = []*cli.Command{
@@ -139,7 +139,7 @@ func run(ctx *cli.Context) error {
 		return err
 	}
 
-	log.Info("Starting BBridge...")
+	log.Info("Starting AssetBridge...")
 
 	cfg, err := config.GetConfig(ctx)
 	if err != nil {

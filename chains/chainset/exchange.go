@@ -4,8 +4,8 @@ import (
 	"fmt"
 	log "github.com/ChainSafe/log15"
 	"github.com/centrifuge/go-substrate-rpc-client/v3/types"
-	"github.com/rjman-self/sherpax-utils/msg"
-	"github.com/rjman-self/substrate-go/expand/chainx/xevents"
+	"github.com/rjman-ljm/sherpax-utils/msg"
+	"github.com/rjman-ljm/substrate-go/expand/chainx/xevents"
 	"math/big"
 )
 
@@ -37,7 +37,7 @@ func (bc *BridgeCore) GetAmountToSub(origin []byte, assetId xevents.AssetId) (*b
 	if err != nil {
 		return big.NewInt(0), err
 	}
-	fmt.Printf("Currency is %v", currency)
+	fmt.Printf("Currency is %v\n", currency)
 	return bc.CalculateAmountToSub(origin, currency.Difference, currency.FixedFee, currency.ExtraFeeRate, currency.Name)
 }
 

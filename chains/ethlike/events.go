@@ -5,7 +5,7 @@ package ethlike
 
 import (
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
-	"github.com/rjman-self/sherpax-utils/msg"
+	"github.com/rjman-ljm/sherpax-utils/msg"
 )
 
 func (l *listener) handleNativeDepositedEvent(destId msg.ChainId, nonce msg.Nonce) (msg.Message, error) {

@@ -40,11 +40,11 @@ lint-fix:
 
 build:
 	@echo "  >  \033[32mBuilding binary...\033[0m "
-	cd cmd/bbridge && env GOARCH=amd64 go build -o ../../build/bbridge $(VERSION)
+	cd cmd/assetbridge && env GOARCH=amd64 go build -o ../../build/assetbridge $(VERSION)
 
 install:
 	@echo "  >  \033[32mInstalling bridge...\033[0m "
-	cd cmd/bbridge && go install $(VERSION)
+	cd cmd/assetbridge && go install $(VERSION)
 
 build-mkdocs:
 	docker run --rm -it -v ${PWD}:/docs squidfunk/mkdocs-material build

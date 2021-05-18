@@ -9,7 +9,7 @@ import (
 	"testing"
 
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/rjman-self/sherpax-utils/core"
+	"github.com/rjman-ljm/sherpax-utils/core"
 )
 
 //TestParseChainConfig tests parseChainConfig with all handlerContracts provided

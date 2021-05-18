@@ -1,5 +1,5 @@
 
-# BBridge
+# AssetBridge
 
 ## Installation
 
@@ -9,13 +9,13 @@
 
 ### Building
 
-`git clone https://github.com/RJman-self/Bbridge.git`
+`git clone https://github.com/organizations/chainx-org/assetbridge.git`
 
-`make build`: Builds `bbridge` in `./build`.
+`make build`: Builds `assetbridge` in `./build`.
 
 **or**
 
-`make install`: Uses `go install` to add `platdot` to your `GOBIN`.
+`make install`: Uses `go install` to add `assetbridge` to your `GOBIN`.
 
 ## License
 

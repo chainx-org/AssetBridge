@@ -8,10 +8,10 @@ import (
 	"sync"
 
 	"github.com/ChainSafe/log15"
-	"github.com/rjman-self/sherpax-utils/msg"
+	"github.com/rjman-ljm/sherpax-utils/msg"
 	gsrpc "github.com/centrifuge/go-substrate-rpc-client/v3"
 
-	utils "github.com/Rjman-self/BBridge/shared/substrate"
+	utils "github.com/chainx-org/AssetBridge/shared/substrate"
 	"github.com/centrifuge/go-substrate-rpc-client/v3/rpc/author"
 	"github.com/centrifuge/go-substrate-rpc-client/v3/signature"
 	"github.com/centrifuge/go-substrate-rpc-client/v3/types"

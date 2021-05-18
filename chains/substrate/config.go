@@ -7,10 +7,10 @@ import (
 	log "github.com/ChainSafe/log15"
 	"github.com/centrifuge/go-substrate-rpc-client/v3/types"
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/rjman-self/sherpax-utils/msg"
+	"github.com/rjman-ljm/sherpax-utils/msg"
 	"strconv"
 
-	"github.com/rjman-self/sherpax-utils/core"
+	"github.com/rjman-ljm/sherpax-utils/core"
 )
 
 func parseStartBlock(cfg *core.ChainConfig) uint64 {
@@ -68,7 +68,7 @@ func parseOtherRelayer(cfg *core.ChainConfig) []types.AccountID {
 			}
 		}
 	} else {
-		log.Error("Please set config opts 'TotalRelayer'.")
+		//log.Error("Please set config opts 'TotalRelayer'.")
 	}
 	return otherSignatories
 }
@@ -98,7 +98,7 @@ func parseMultiSignAddress(cfg *core.ChainConfig) types.AccountID {
 		multiSignAccount := types.NewAccountID(multiSignPk)
 		return multiSignAccount
 	} else {
-		log.Error("Polkadot MultiAddress Not Found")
+		//log.Error("Polkadot MultiAddress Not Found")
 	}
 	return types.AccountID{}
 }

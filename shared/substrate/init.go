@@ -5,7 +5,7 @@ package utils
 
 import (
 	"github.com/centrifuge/go-substrate-rpc-client/v3/types"
-	"github.com/rjman-self/sherpax-utils/msg"
+	"github.com/rjman-ljm/sherpax-utils/msg"
 )
 
 func InitializeChain(client *Client, relayers []types.AccountID, chains []msg.ChainId, resources map[msg.ResourceId]Method, threshold uint32) error {

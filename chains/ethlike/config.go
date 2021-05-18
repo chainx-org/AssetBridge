@@ -10,9 +10,9 @@ import (
 	"strconv"
 
 	"github.com/ethereum/go-ethereum/common"
-	utils "github.com/Rjman-self/BBridge/shared/bsc"
-	"github.com/rjman-self/sherpax-utils/core"
-	"github.com/rjman-self/sherpax-utils/msg"
+	utils "github.com/chainx-org/AssetBridge/shared/ethlike"
+	"github.com/rjman-ljm/sherpax-utils/core"
+	"github.com/rjman-ljm/sherpax-utils/msg"
 )
 
 const DefaultGasLimit = 6721975

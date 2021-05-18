@@ -15,8 +15,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/rjman-self/sherpax-utils/crypto"
-	"github.com/rjman-self/sherpax-utils/keystore"
+	"github.com/rjman-ljm/sherpax-utils/crypto"
+	"github.com/rjman-ljm/sherpax-utils/keystore"
 	"github.com/stretchr/testify/require"
 	"github.com/urfave/cli/v2"
 )

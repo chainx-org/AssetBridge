@@ -2,7 +2,7 @@ package chainset
 
 import (
 	"fmt"
-	"github.com/rjman-self/substrate-go/expand/chainx/xevents"
+	"github.com/rjman-ljm/substrate-go/expand/chainx/xevents"
 )
 
 // The Eth-Like precision is 18 bits.

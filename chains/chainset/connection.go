@@ -3,11 +3,11 @@ package chainset
 import (
 	"bytes"
 	"fmt"
-	utils "github.com/Rjman-self/BBridge/shared/substrate"
+	utils "github.com/chainx-org/AssetBridge/shared/substrate"
 	gsrpc "github.com/centrifuge/go-substrate-rpc-client/v3"
 	"github.com/centrifuge/go-substrate-rpc-client/v3/scale"
 	"github.com/centrifuge/go-substrate-rpc-client/v3/types"
-	"github.com/rjman-self/substrate-go/expand/chainx/xevents"
+	"github.com/rjman-ljm/substrate-go/expand/chainx/xevents"
 )
 
 type option struct {

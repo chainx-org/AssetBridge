@@ -2,9 +2,9 @@ package substrate
 
 import (
 	"github.com/centrifuge/go-substrate-rpc-client/v3/types"
-	"github.com/rjman-self/sherpax-utils/msg"
-	"github.com/rjman-self/substrate-go/expand"
-	"github.com/rjman-self/substrate-go/models"
+	"github.com/rjman-ljm/sherpax-utils/msg"
+	"github.com/rjman-ljm/substrate-go/expand"
+	"github.com/rjman-ljm/substrate-go/models"
 )
 
 type MultiSignTxId uint64

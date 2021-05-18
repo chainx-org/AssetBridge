@@ -7,8 +7,8 @@ import (
 	"math/big"
 
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/Rjman-self/BBridge/bindings/Bridge"
-	"github.com/rjman-self/sherpax-utils/msg"
+	"github.com/chainx-org/AssetBridge/bindings/Bridge"
+	"github.com/rjman-ljm/sherpax-utils/msg"
 )
 
 func RegisterResource(client *Client, bridge, handler common.Address, rId msg.ResourceId, addr common.Address) error {

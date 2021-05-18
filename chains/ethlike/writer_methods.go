@@ -6,15 +6,15 @@ package ethlike
 import (
 	"context"
 	"errors"
-	"github.com/Rjman-self/BBridge/chains/chainset"
-	"github.com/Rjman-self/BBridge/chains/substrate"
+	"github.com/chainx-org/AssetBridge/chains/chainset"
+	"github.com/chainx-org/AssetBridge/chains/substrate"
 	"github.com/ethereum/go-ethereum/common"
 	"math/big"
 	"time"
 
 	log "github.com/ChainSafe/log15"
-	utils "github.com/Rjman-self/BBridge/shared/bsc"
-	"github.com/rjman-self/sherpax-utils/msg"
+	utils "github.com/chainx-org/AssetBridge/shared/ethlike"
+	"github.com/rjman-ljm/sherpax-utils/msg"
 )
 
 // Number of blocks to wait for an finalization event

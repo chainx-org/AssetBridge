@@ -9,10 +9,10 @@ import (
 
 	"github.com/ethereum/go-ethereum/common"
 
-	bridge "github.com/Rjman-self/BBridge/bindings/Bridge"
-	erc20Handler "github.com/Rjman-self/BBridge/bindings/ERC20Handler"
-	erc721Handler "github.com/Rjman-self/BBridge/bindings/ERC721Handler"
-	"github.com/rjman-self/sherpax-utils/keystore"
+	bridge "github.com/chainx-org/AssetBridge/bindings/Bridge"
+	erc20Handler "github.com/chainx-org/AssetBridge/bindings/ERC20Handler"
+	erc721Handler "github.com/chainx-org/AssetBridge/bindings/ERC721Handler"
+	"github.com/rjman-ljm/sherpax-utils/keystore"
 )
 
 var (

@@ -2,12 +2,12 @@ package chainset
 
 import (
 	"github.com/JFJun/go-substrate-crypto/ss58"
-	utils "github.com/Rjman-self/BBridge/shared/substrate"
+	utils "github.com/chainx-org/AssetBridge/shared/substrate"
 	"github.com/centrifuge/go-substrate-rpc-client/v3/types"
-	"github.com/rjman-self/sherpax-utils/msg"
-	"github.com/rjman-self/substrate-go/client"
-	"github.com/rjman-self/substrate-go/expand"
-	"github.com/rjman-self/substrate-go/expand/chainx/xevents"
+	"github.com/rjman-ljm/sherpax-utils/msg"
+	"github.com/rjman-ljm/substrate-go/client"
+	"github.com/rjman-ljm/substrate-go/expand"
+	"github.com/rjman-ljm/substrate-go/expand/chainx/xevents"
 )
 
 /// ChainId Type

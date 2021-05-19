@@ -255,9 +255,6 @@ func (l *listener) pollBlocks() error {
 			err = l.processEvents(hash)
 			if err != nil {
 				l.log.Error("Failed to process events in block", "block", currentBlock, "err", err)
-				retry--
-				time.Sleep(BlockRetryInterval)
-				continue
 			}
 
 			// Write to blockStore
@@ -371,10 +368,23 @@ func (l *listener) submitMessage(m msg.Message, err error) {
 		log15.Error("Critical error processing event", "err", err)
 		return
 	}
+
+	/// check Erc20TokenTransfer Type
+	m.Type = l.checkMessageType(m)
+
 	m.Source = l.chainId
 	err = l.router.Send(m)
 	if err != nil {
 		log15.Error("failed to process event", "err", err)
+	}
+}
+
+func (l *listener) checkMessageType(m msg.Message) msg.TransferType {
+	rIdXUSD := msg.ResourceIdFromSlice(common.FromHex(chainset.ResourceIdXUSD))
+	if m.ResourceId == rIdXUSD {
+		return msg.Erc20TokenTransfer
+	} else {
+		return msg.FungibleTransfer
 	}
 }
 

@@ -64,9 +64,20 @@ const (
 	AssetXBTC			xevents.AssetId = 1
 	AssetXBNB			xevents.AssetId = 2
 	AssetXETH			xevents.AssetId = 3
-	AssetXUSD			xevents.AssetId = 4
-	AssetXHT			xevents.AssetId = 5
+	AssetXHT			xevents.AssetId = 4
+	AssetXUSD			xevents.AssetId = 5
 	XAssetId			xevents.AssetId = 999
+)
+
+const ResourceIdPrefix = "0000000000000000000000000000000000000000000000000000000000000"
+const (
+	OriginResourceId			string = ResourceIdPrefix + "000"
+	ResourceIdXBTC				string = ResourceIdPrefix + "001"
+	ResourceIdXBNB				string = ResourceIdPrefix + "002"
+	ResourceIdXETH				string = ResourceIdPrefix + "003"
+	ResourceIdXHT				string = ResourceIdPrefix + "004"
+	ResourceIdXUSD				string = ResourceIdPrefix + "005"
+	XResourceId					string = ResourceIdPrefix + "999"
 )
 
 func (bc *BridgeCore) GetCurrency(assetId xevents.AssetId) (*Currency, error) {

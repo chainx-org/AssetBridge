@@ -543,8 +543,8 @@ github.com/rcrowley/go-metrics v0.0.0-20181016184325-3113b8401b8a/go.mod h1:bCqn
 github.com/retailnext/hllpp v1.0.1-0.20180308014038-101a6d2f8b52/go.mod h1:RDpi1RftBQPUCDRw6SmxeaREsAaRKnOclghuzp/WRzc=
 github.com/rjeczalik/notify v0.9.1 h1:CLCKso/QK1snAlnhNR/CNvNiFU2saUtjV0bx3EwNeCE=
 github.com/rjeczalik/notify v0.9.1/go.mod h1:rKwnCoCGeuQnwBtTSPL9Dad03Vh2n40ePRrjvIXnJho=
-github.com/rjman-ljm/sherpax-utils v1.0.2 h1:kf7dTCQWSYVeLoF1pRADYuOOCxcyhfbB6j9W5LCjge0=
-github.com/rjman-ljm/sherpax-utils v1.0.2/go.mod h1:y9BEB52DDGHLoxZbY//W7c6E0AdQCrF93C9Btayggxg=
+github.com/rjman-ljm/sherpax-utils v1.0.4 h1:+uaBx97KGUWKkC/heFJ/2nGrB3wGtt6jsa+xXwOStsc=
+github.com/rjman-ljm/sherpax-utils v1.0.4/go.mod h1:fD/c4srM1VPlDUpSxRYQtYXuRqRe+dJfv8iqspfbiCw=
 github.com/rjman-ljm/substrate-go v1.5.8 h1:4d3TA6xEMNoQH1kdsoIoYxVAPMYWgqDsmrhlcNISH6g=
 github.com/rjman-ljm/substrate-go v1.5.8/go.mod h1:BFUC73o0pqCfBN1+h1xZQY4+kfZnb/Jb1VrPpk1RH24=
 github.com/rogpeppe/fastuuid v0.0.0-20150106093220-6724a57986af/go.mod h1:XWv6SoW27p1b0cqNHllgS5HIMJraePCO15w5zCzIWYg=

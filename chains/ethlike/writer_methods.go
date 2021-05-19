@@ -123,10 +123,10 @@ func (w *writer) createNativeErc20Proposal(m msg.Message) bool {
 	return true
 }
 
-// createErc20Proposal creates an Erc20 proposal.
+// createErc20TokenProposal creates an Erc20 Token proposal.
 // Returns true if the proposal is successfully created or is complete
-func (w *writer) createErc20Proposal(m msg.Message) bool {
-	w.log.Info("Creating erc20 proposal", "src", m.Source, "nonce", m.DepositNonce)
+func (w *writer) createErc20TokenProposal(m msg.Message) bool {
+	w.log.Info("Creating erc20 Token proposal", "src", m.Source, "nonce", m.DepositNonce)
 
 	sendAmount, err := w.bridgeCore.GetAmountToEth(m.Payload[0].([]byte), chainset.XAssetId)
 	if err != nil {
@@ -139,6 +139,43 @@ func (w *writer) createErc20Proposal(m msg.Message) bool {
 	fmt.Printf("internalAccount is %v\nrealRecipient is   %v\n", internalAccount.Bytes(), realRecipient.Bytes())
 
 	data := ConstructErc20ProposalData(sendAmount.Bytes(), internalAccount.Bytes())
+	dataHash := utils.Hash(append(w.cfg.erc20HandlerContract.Bytes(), data...))
+
+	if !w.shouldVote(m, dataHash) {
+		if w.proposalIsPassed(m.Source, m.DepositNonce, dataHash) {
+			// Execute if proposal passed
+			w.executeProposal(m, data, dataHash)
+			return true
+		} else {
+			return false
+		}
+	}
+	// Capture latest block so when know where to watch from
+	latestBlock, err := w.conn.LatestBlock()
+	if err != nil {
+		w.log.Error("Unable to fetch latest block", "err", err)
+		return false
+	}
+
+	// Watch for execution event
+	go w.watchThenExecute(m, data, dataHash, latestBlock)
+
+	w.voteProposal(m, dataHash)
+
+	return true
+}
+
+// createErc20Proposal creates an Erc20 proposal.
+// Returns true if the proposal is successfully created or is complete
+func (w *writer) createErc20Proposal(m msg.Message) bool {
+	w.log.Info("Creating erc20 proposal", "src", m.Source, "nonce", m.DepositNonce)
+
+	sendAmount, err := w.bridgeCore.GetAmountToEth(m.Payload[0].([]byte), chainset.XAssetId)
+	if err != nil {
+		return false
+	}
+
+	data := ConstructErc20ProposalData(sendAmount.Bytes(), m.Payload[1].([]byte))
 	dataHash := utils.Hash(append(w.cfg.erc20HandlerContract.Bytes(), data...))
 
 	if !w.shouldVote(m, dataHash) {
@@ -403,8 +440,9 @@ func (w *writer) executeProposal(m msg.Message, data []byte, dataHash [32]byte) 
 				w.log.Info(substrate.LineLog, "src", m.Source, "dst", m.Destination, "nonce", m.DepositNonce)
 				w.log.Info("Submitted proposal execution", "src", m.Source, "dst", m.Destination, "nonce", m.DepositNonce)
 				w.log.Info(substrate.LineLog, "src", m.Source, "dst", m.Destination, "nonce", m.DepositNonce)
-				//TODO: store DepositNonce
-				if w.cfg.internalAccount == w.kp.CommonAddress() {
+
+				/// WithdrawTo account
+				if m.Type == msg.Erc20TokenTransfer && w.cfg.internalAccount == w.kp.CommonAddress() {
 					w.withdrawToRecipient(m)
 				}
 				return

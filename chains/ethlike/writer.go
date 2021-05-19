@@ -65,6 +65,9 @@ func (w *writer) ResolveMessage(m msg.Message) bool {
 	switch m.Type {
 	case msg.NativeTransfer:
 		return w.createNativeErc20Proposal(m)
+	case msg.Erc20TokenTransfer:
+		/// Resolve specific Erc20 Token
+		return w.createErc20TokenProposal(m)
 	case msg.FungibleTransfer:
 		return w.createErc20Proposal(m)
 	case msg.NonFungibleTransfer:

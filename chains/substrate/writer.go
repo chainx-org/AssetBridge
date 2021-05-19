@@ -107,7 +107,6 @@ func (w *writer) ResolveMessage(m msg.Message) bool {
 
 		// If active submit call, otherwise skip it. Retry on failure.
 		if valid {
-			w.log.Info("Acknowledging proposal on chain", "nonce", prop.depositNonce, "source", prop.sourceId, "resource", fmt.Sprintf("%x", prop.resourceId), "method", prop.method)
 			//fmt.Printf("method is %v\nnonce is %v\nsourceId is %v\nResourceId is %v\ncall\n%v\n", AcknowledgeProposal, prop.depositNonce, prop.sourceId, prop.resourceId, prop.call)
 			err = w.conn.SubmitTx(AcknowledgeProposal, prop.depositNonce, prop.sourceId, prop.resourceId, prop.call)
 			if err != nil && err.Error() == TerminatedError.Error() {
@@ -117,6 +116,13 @@ func (w *writer) ResolveMessage(m msg.Message) bool {
 				time.Sleep(BlockRetryInterval)
 				continue
 			}
+
+			assetId , err := w.bridgeCore.ResourceIdToAssetId(w.conn.api, &w.conn.meta, prop.resourceId)
+			if err != nil {
+				w.logErr("rId to assetId err", err)
+			}
+
+			w.log.Info("Acknowledging proposal on chain", "nonce", prop.depositNonce, "source", prop.sourceId, "AssetId", assetId, "method", prop.method)
 			if w.metrics != nil {
 				w.metrics.VotesSubmitted.Inc()
 			}
@@ -183,7 +189,7 @@ func (w *writer) redeemTx(message *Msg) (bool, MultiSignTx) { w.UpdateMetadata()
 			for _, ms := range w.listener.msTxAsMulti {
 				// Validate parameter
 				var destAddress string
-				if m.Source == chainset.IdBSC || m.Source == chainset.IdRopsten || m.Source == chainset.IdHeco{
+				if m.Source == chainset.IdBSC || m.Source == chainset.IdKovan || m.Source == chainset.IdHeco{
 					dest := types.NewAddressFromAccountID(m.Payload[1].([]byte)).AsAccountID
 					destAddress = utils2.BytesToHex(dest[:])
 				} else {
@@ -269,7 +275,7 @@ func (w *writer) checkRedeem(m msg.Message, actualAmount *big.Int) (bool, MultiS
 	for _, ms := range w.listener.msTxAsMulti {
 		// Validate parameter
 		var destAddress string
-		if m.Source == chainset.IdBSC || m.Source == chainset.IdRopsten || m.Source == chainset.IdHeco {
+		if m.Source == chainset.IdBSC || m.Source == chainset.IdKovan || m.Source == chainset.IdHeco {
 			dest := types.NewAddressFromAccountID(m.Payload[1].([]byte)).AsAccountID
 			destAddress = utils2.BytesToHex(dest[:])
 		} else {

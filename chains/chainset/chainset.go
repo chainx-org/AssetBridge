@@ -21,10 +21,10 @@ const (
 const (
 	NameUnimplemented		string = "unimplemented"
 
-	NameBSC					string = "bsc_"
-	NameRopsten				string = "repsten_"
-	NameHeco				string = "heco_"
-	NameETH					string = "eth_"
+	NameBSC   				string = "bsc_"
+	NameKovan 				string = "kovan_"
+	NameHeco  				string = "heco_"
+	NameETH   				string = "eth_"
 
 	NamePlaton				string = "platon_"
 	NameAlaya				string = "alaya_"
@@ -70,7 +70,7 @@ type ChainInfo struct{
 var (
 	ChainSets = [...]ChainInfo{
 		{ NameBSC, 			TokenBNB, EthLike },
-		{ NameRopsten, 		TokenETH, EthLike },
+		{ NameKovan, 			TokenETH, EthLike },
 		{ NameHeco, 			TokenETH, EthLike },
 		{ NameETH, 			TokenHT, 	EthLike },
 		{ NameKusama, 		TokenKSM, KusamaLike },

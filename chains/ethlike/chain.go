@@ -25,6 +25,7 @@ import (
 	"github.com/ChainSafe/log15"
 	bridge "github.com/chainx-org/AssetBridge/bindings/Bridge"
 	erc20Handler "github.com/chainx-org/AssetBridge/bindings/ERC20Handler"
+	"github.com/chainx-org/AssetBridge/bindings/WETH10"
 	"github.com/chainx-org/AssetBridge/chains/chainset"
 	connection "github.com/chainx-org/AssetBridge/connections/ethlike"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
@@ -120,6 +121,11 @@ func InitializeChain(chainCfg *core.ChainConfig, logger log15.Logger, sysErr cha
 		return nil, err
 	}
 
+	assetContract, err := WETH10.NewWETH10(cfg.assetContract, conn.Client())
+	if err != nil {
+		return nil, err
+	}
+
 	chainId, err := bridgeContract.ChainID(conn.CallOpts())
 	if err != nil {
 		return nil, err
@@ -149,8 +155,8 @@ func InitializeChain(chainCfg *core.ChainConfig, logger log15.Logger, sysErr cha
 	listener := NewListener(conn, cfg, logger, bs, stop, sysErr, m)
 	listener.setContracts(bridgeContract, erc20HandlerContract)
 
-	writer := NewWriter(conn, cfg, logger, stop, sysErr, m, bc)
-	writer.setContract(bridgeContract)
+	writer := NewWriter(conn, cfg, logger, *kp, stop, sysErr, m, bc)
+	writer.setContract(bridgeContract, assetContract)
 
 	return &Chain{
 		cfg:      chainCfg,

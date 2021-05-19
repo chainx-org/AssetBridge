@@ -6,8 +6,10 @@ package ethlike
 import (
 	"github.com/ChainSafe/log15"
 	"github.com/chainx-org/AssetBridge/bindings/Bridge"
+	"github.com/chainx-org/AssetBridge/bindings/WETH10"
 	"github.com/chainx-org/AssetBridge/chains/chainset"
 	"github.com/rjman-ljm/sherpax-utils/core"
+	"github.com/rjman-ljm/sherpax-utils/crypto/secp256k1"
 	metrics "github.com/rjman-ljm/sherpax-utils/metrics/types"
 	"github.com/rjman-ljm/sherpax-utils/msg"
 )
@@ -22,6 +24,8 @@ type writer struct {
 	cfg            Config
 	conn           Connection
 	bridgeContract *Bridge.Bridge // instance of bound receiver bridgeContract
+	assetContract  *WETH10.WETH10
+	kp             secp256k1.Keypair
 	log            log15.Logger
 	stop           <-chan int
 	sysErr         chan<- error // Reports fatal error to core
@@ -30,10 +34,11 @@ type writer struct {
 }
 
 // NewWriter creates and returns writer
-func NewWriter(conn Connection, cfg *Config, log log15.Logger, stop <-chan int, sysErr chan<- error, m *metrics.ChainMetrics, bc *chainset.BridgeCore) *writer {
+func NewWriter(conn Connection, cfg *Config, log log15.Logger, kp secp256k1.Keypair, stop <-chan int, sysErr chan<- error, m *metrics.ChainMetrics, bc *chainset.BridgeCore) *writer {
 	return &writer{
 		cfg:     *cfg,
 		conn:    conn,
+		kp:		 kp,
 		log:     log,
 		stop:    stop,
 		sysErr:  sysErr,
@@ -48,8 +53,9 @@ func (w *writer) start() error {
 }
 
 // setContract adds the bound receiver bridgeContract to the writer
-func (w *writer) setContract(bridge *Bridge.Bridge) {
+func (w *writer) setContract(bridge *Bridge.Bridge, asset *WETH10.WETH10) {
 	w.bridgeContract = bridge
+	w.assetContract = asset
 }
 
 // ResolveMessage handles any given message based on type

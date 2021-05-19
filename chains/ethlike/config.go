@@ -22,16 +22,18 @@ const DefaultGasMultiplier = 1
 
 // Chain specific options
 var (
+	AssetOpt			  = "asset"
 	BridgeOpt             = "bridge"
 	Erc20HandlerOpt       = "erc20Handler"
 	Erc721HandlerOpt      = "erc721Handler"
 	GenericHandlerOpt     = "genericHandler"
+	InternalAccount		  = "internalAccount"
 	MaxGasPriceOpt        = "maxGasPrice"
 	GasLimitOpt           = "gasLimit"
 	GasMultiplier         = "gasMultiplier"
 	HttpOpt               = "http"
 	StartBlockOpt         = "startBlock"
-	EndBlockOpt         = "endBlock"
+	EndBlockOpt           = "endBlock"
 	BlockConfirmationsOpt = "blockConfirmations"
 	PrefixOpt             = "prefix"
 	NetworkIdOpt          = "networkId"
@@ -53,6 +55,8 @@ type Config struct {
 	erc20HandlerContract   common.Address
 	erc721HandlerContract  common.Address
 	genericHandlerContract common.Address
+	assetContract          common.Address
+	internalAccount		   common.Address
 	gasLimit               *big.Int
 	maxGasPrice            *big.Int
 	gasMultiplier          *big.Float
@@ -78,6 +82,7 @@ func parseChainConfig(chainCfg *core.ChainConfig) (*Config, error) {
 		erc20HandlerContract:   utils.ZeroAddress,
 		erc721HandlerContract:  utils.ZeroAddress,
 		genericHandlerContract: utils.ZeroAddress,
+		internalAccount: 		utils.ZeroAddress,
 		gasLimit:               big.NewInt(DefaultGasLimit),
 		maxGasPrice:            big.NewInt(DefaultGasPrice),
 		gasMultiplier:          big.NewFloat(DefaultGasMultiplier),
@@ -96,6 +101,14 @@ func parseChainConfig(chainCfg *core.ChainConfig) (*Config, error) {
 	} else {
 		return nil, fmt.Errorf("must provide opts.bridge field for ethereum config")
 	}
+
+	if contract, ok := chainCfg.Opts[AssetOpt]; ok && contract != "" {
+		config.assetContract = common.HexToAddress(contract)
+		delete(chainCfg.Opts, AssetOpt)
+	}
+
+	config.internalAccount = common.HexToAddress(chainCfg.Opts[InternalAccount])
+	delete(chainCfg.Opts, InternalAccount)
 
 	config.erc20HandlerContract = common.HexToAddress(chainCfg.Opts[Erc20HandlerOpt])
 	delete(chainCfg.Opts, Erc20HandlerOpt)

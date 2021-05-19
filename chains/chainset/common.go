@@ -12,9 +12,9 @@ import (
 
 /// ChainId Type
 const (
-	IdBSC       			msg.ChainId = 2
-	IdRopsten				msg.ChainId = 3
-	IdHeco					msg.ChainId = 4
+	IdBSC   msg.ChainId = 2
+	IdKovan msg.ChainId = 3
+	IdHeco  msg.ChainId = 4
 
 	IdKusama    			msg.ChainId = 21
 	IdPolkadot  			msg.ChainId = 22

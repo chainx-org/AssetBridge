@@ -58,7 +58,7 @@ var ErrBlockNotReady = errors.New("required result to be 32 bytes, but got 0")
 const InitCapacity = 100
 
 var BlockRetryInterval = time.Second * 5
-var BlockRetryLimit = 20
+var BlockRetryLimit = 15
 var RedeemRetryLimit = 15
 
 func NewListener(conn *Connection, name string, id msg.ChainId, startBlock uint64, endBlock uint64, lostAddress string, log log15.Logger, bs blockstore.Blockstorer,
@@ -236,13 +236,7 @@ func (l *listener) pollBlocks() error {
 			}
 
 			/// Listen Native Transfer
-			err = l.processBlock(int64(currentBlock))
-			if err != nil {
-				l.log.Error(FailedToProcessCurrentBlock, "block", currentBlock, "err", err)
-				retry--
-				time.Sleep(BlockRetryInterval)
-				continue
-			}
+			l.processBlock(int64(currentBlock))
 
 			/// Listen Erc20/Erc721/Generic Transfer
 			// Get hash for latest block, sleep and retry if not ready
@@ -287,11 +281,11 @@ func (l *listener) pollBlocks() error {
 	}
 }
 
-func (l *listener) processBlock(currentBlock int64) error {
+func (l *listener) processBlock(currentBlock int64) {
 	retryTimes := BlockRetryLimit
 	for {
 		if retryTimes == 0 {
-			return fmt.Errorf(ProcessBlockError)
+			break
 		}
 
 		resp, err := l.client.GetBlockByNumber(currentBlock)
@@ -309,7 +303,6 @@ func (l *listener) processBlock(currentBlock int64) error {
 
 		break
 	}
-	return nil
 }
 
 

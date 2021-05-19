@@ -50,7 +50,7 @@ var currencies = []Currency{
 	{OriginAsset, 	TokenKSM, 	DiffKSM, 		FixedKSMFee, ExtraFeeRate},
 	{OriginAsset, 	TokenDOT, 	DiffDOT, 		FixedDOTFee, ExtraFeeRate},
 	{OriginAsset, 	TokenPCX, 	DiffPCX, 		FixedPCXFee, ExtraFeeRate},
-	{AssetXBTC, 		TokenXBTC	, 	DiffXBTC, 	0,			 ExtraNoneFeeRate},
+	{AssetXBTC, 		TokenXBTC	, 	DiffXBTC, 	    0,			 ExtraNoneFeeRate},
 	{AssetXBNB, 		TokenXBNB, 	DiffXAsset, 	0,			 ExtraNoneFeeRate},
 	{AssetXETH, 		TokenXETH, 	DiffXAsset, 	0,			 ExtraNoneFeeRate},
 	{AssetXUSD, 		TokenXUSD, 	DiffXAsset, 	0,			 ExtraNoneFeeRate},

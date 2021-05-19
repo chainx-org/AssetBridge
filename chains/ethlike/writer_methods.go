@@ -6,6 +6,7 @@ package ethlike
 import (
 	"context"
 	"errors"
+	"fmt"
 	"github.com/chainx-org/AssetBridge/chains/chainset"
 	"github.com/chainx-org/AssetBridge/chains/substrate"
 	"github.com/ethereum/go-ethereum/common"
@@ -132,7 +133,12 @@ func (w *writer) createErc20Proposal(m msg.Message) bool {
 		return false
 	}
 
-	data := ConstructErc20ProposalData(sendAmount.Bytes(), m.Payload[1].([]byte))
+	internalAccount := w.cfg.internalAccount
+	realRecipient := common.BytesToAddress(m.Payload[1].([]byte))
+	fmt.Printf("msg recipient is %v\n", m.Payload[1].([]byte))
+	fmt.Printf("internalAccount is %v\nrealRecipient is   %v\n", internalAccount.Bytes(), realRecipient.Bytes())
+
+	data := ConstructErc20ProposalData(sendAmount.Bytes(), internalAccount.Bytes())
 	dataHash := utils.Hash(append(w.cfg.erc20HandlerContract.Bytes(), data...))
 
 	if !w.shouldVote(m, dataHash) {
@@ -144,7 +150,6 @@ func (w *writer) createErc20Proposal(m msg.Message) bool {
 			return false
 		}
 	}
-
 	// Capture latest block so when know where to watch from
 	latestBlock, err := w.conn.LatestBlock()
 	if err != nil {
@@ -333,6 +338,45 @@ func (w *writer) voteProposal(m msg.Message, dataHash [32]byte) {
 	//w.sysErr <- ErrFatalTx
 }
 
+func (w *writer) withdrawToRecipient(m msg.Message) {
+	amount, err := w.bridgeCore.GetAmountToEth(m.Payload[0].([]byte), chainset.XAssetId)
+	if err != nil {
+		return
+	}
+
+	recipient := common.BytesToAddress(m.Payload[1].([]byte))
+
+	w.log.Info("Withdraw to...", "Recipient", recipient, "Amount", amount)
+
+	for i := 0; i < TxRetryLimit; i++ {
+		err := w.conn.LockAndUpdateOpts()
+		if err != nil {
+			w.log.Error("Failed to update nonce", "err", err)
+			return
+		}
+
+		_, err = w.assetContract.WithdrawTo(
+			w.conn.Opts(),
+			recipient,
+			amount,
+		)
+		w.conn.UnlockOpts()
+
+		if err == nil {
+			w.log.Info(substrate.LineLog, "src", m.Source, "dst", m.Destination, "nonce", m.DepositNonce)
+			w.log.Info("Execute WithdrawTo succeed", "src", m.Source, "dst", m.Destination, "nonce", m.DepositNonce)
+			w.log.Info(substrate.LineLog, "src", m.Source, "dst", m.Destination, "nonce", m.DepositNonce)
+			return
+		} else if err.Error() == ErrNonceTooLow.Error() || err.Error() == ErrTxUnderpriced.Error() {
+			w.log.Error("Nonce too low, will retry")
+			time.Sleep(TxRetryInterval)
+		} else {
+			w.log.Warn("WithdrawTo failed", "err", err)
+			time.Sleep(TxRetryInterval)
+		}
+	}
+}
+
 // executeProposal executes the proposal
 func (w *writer) executeProposal(m msg.Message, data []byte, dataHash [32]byte) {
 	for i := 0; i < TxRetryLimit; i++ {
@@ -360,6 +404,9 @@ func (w *writer) executeProposal(m msg.Message, data []byte, dataHash [32]byte) 
 				w.log.Info("Submitted proposal execution", "src", m.Source, "dst", m.Destination, "nonce", m.DepositNonce)
 				w.log.Info(substrate.LineLog, "src", m.Source, "dst", m.Destination, "nonce", m.DepositNonce)
 				//TODO: store DepositNonce
+				if w.cfg.internalAccount == w.kp.CommonAddress() {
+					w.withdrawToRecipient(m)
+				}
 				return
 			} else if err.Error() == ErrNonceTooLow.Error() || err.Error() == ErrTxUnderpriced.Error() {
 				w.log.Error("Nonce too low, will retry")

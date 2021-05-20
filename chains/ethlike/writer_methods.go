@@ -133,12 +133,7 @@ func (w *writer) createErc20TokenProposal(m msg.Message) bool {
 		return false
 	}
 
-	internalAccount := w.cfg.internalAccount
-	realRecipient := common.BytesToAddress(m.Payload[1].([]byte))
-	fmt.Printf("msg recipient is %v\n", m.Payload[1].([]byte))
-	fmt.Printf("internalAccount is %v\nrealRecipient is   %v\n", internalAccount.Bytes(), realRecipient.Bytes())
-
-	data := ConstructErc20ProposalData(sendAmount.Bytes(), internalAccount.Bytes())
+	data := ConstructErc20ProposalData(sendAmount.Bytes(), m.Payload[1].([]byte))
 	dataHash := utils.Hash(append(w.cfg.erc20HandlerContract.Bytes(), data...))
 
 	if !w.shouldVote(m, dataHash) {
@@ -168,14 +163,16 @@ func (w *writer) createErc20TokenProposal(m msg.Message) bool {
 // createErc20Proposal creates an Erc20 proposal.
 // Returns true if the proposal is successfully created or is complete
 func (w *writer) createErc20Proposal(m msg.Message) bool {
+	w.log.Info(substrate.LineLog, "DepositNonce", m.DepositNonce)
+	w.log.Info("Start Redeem...", "DepositNonce", m.DepositNonce)
+	w.log.Info(substrate.LineLog, "DepositNonce", m.DepositNonce)
 	w.log.Info("Creating erc20 proposal", "src", m.Source, "nonce", m.DepositNonce)
-
 	sendAmount, err := w.bridgeCore.GetAmountToEth(m.Payload[0].([]byte), chainset.XAssetId)
 	if err != nil {
 		return false
 	}
 
-	data := ConstructErc20ProposalData(sendAmount.Bytes(), m.Payload[1].([]byte))
+	data := ConstructErc20ProposalData(sendAmount.Bytes(), w.cfg.internalAccount.Bytes())
 	dataHash := utils.Hash(append(w.cfg.erc20HandlerContract.Bytes(), data...))
 
 	if !w.shouldVote(m, dataHash) {
@@ -382,9 +379,7 @@ func (w *writer) withdrawToRecipient(m msg.Message) {
 	}
 
 	recipient := common.BytesToAddress(m.Payload[1].([]byte))
-
-	w.log.Info("Withdraw to...", "Recipient", recipient, "Amount", amount)
-
+	fmt.Printf("WithdrawTo %v, amount is %v\n", recipient, amount)
 	for i := 0; i < TxRetryLimit; i++ {
 		err := w.conn.LockAndUpdateOpts()
 		if err != nil {
@@ -401,7 +396,7 @@ func (w *writer) withdrawToRecipient(m msg.Message) {
 
 		if err == nil {
 			w.log.Info(substrate.LineLog, "src", m.Source, "dst", m.Destination, "nonce", m.DepositNonce)
-			w.log.Info("Execute WithdrawTo succeed", "src", m.Source, "dst", m.Destination, "nonce", m.DepositNonce)
+			w.log.Info("End Redeem, Execute WithdrawTo succeed", "src", m.Source, "dst", m.Destination, "nonce", m.DepositNonce)
 			w.log.Info(substrate.LineLog, "src", m.Source, "dst", m.Destination, "nonce", m.DepositNonce)
 			return
 		} else if err.Error() == ErrNonceTooLow.Error() || err.Error() == ErrTxUnderpriced.Error() {
@@ -438,11 +433,11 @@ func (w *writer) executeProposal(m msg.Message, data []byte, dataHash [32]byte) 
 
 			if err == nil {
 				w.log.Info(substrate.LineLog, "src", m.Source, "dst", m.Destination, "nonce", m.DepositNonce)
-				w.log.Info("Submitted proposal execution", "src", m.Source, "dst", m.Destination, "nonce", m.DepositNonce)
+				w.log.Info("Redeem...Submitted proposal execution", "src", m.Source, "dst", m.Destination, "nonce", m.DepositNonce)
 				w.log.Info(substrate.LineLog, "src", m.Source, "dst", m.Destination, "nonce", m.DepositNonce)
 
 				/// WithdrawTo account
-				if m.Type == msg.Erc20TokenTransfer && w.cfg.internalAccount == w.kp.CommonAddress() {
+				if m.Type == msg.FungibleTransfer && w.cfg.internalAccount == w.kp.CommonAddress() {
 					w.withdrawToRecipient(m)
 				}
 				return

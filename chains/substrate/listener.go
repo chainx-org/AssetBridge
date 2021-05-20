@@ -380,7 +380,7 @@ func (l *listener) submitMessage(m msg.Message, err error) {
 }
 
 func (l *listener) checkMessageType(m msg.Message) msg.TransferType {
-	rIdXUSD := msg.ResourceIdFromSlice(common.FromHex(chainset.ResourceIdXUSD))
+	rIdXUSD := l.bridgeCore.ConvertStringToResourceId(chainset.ResourceIdXUSD)
 	if m.ResourceId == rIdXUSD {
 		return msg.Erc20TokenTransfer
 	} else {
@@ -532,7 +532,7 @@ func (l *listener) logCrossChainTx (tokenX string, tokenY string, amount *big.In
 }
 
 func (l *listener) logReadyToSend(amount *big.Int, recipient []byte, e *models.ExtrinsicResponse) {
-	currency, err := l.bridgeCore.GetCurrency(e.AssetId)
+	currency, err := l.bridgeCore.GetCurrencyByAssetId(e.AssetId)
 	if err != nil {
 		fmt.Printf("unimplemented currency")
 		return

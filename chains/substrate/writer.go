@@ -29,14 +29,12 @@ const genesisBlock = 0
 const RoundInterval = time.Second * 6
 
 type writer struct {
-	meta       *types.Metadata
 	conn       *Connection
 	listener   *listener
 	log        log15.Logger
 	sysErr     chan<- error
 	metrics    *metrics.ChainMetrics
 	extendCall bool // Extend extrinsic calls to substrate with ResourceID.Used for backward compatibility with example pallet.
-	msApi      *gsrpc.SubstrateAPI
 	relayer    Relayer
 	maxWeight  uint64
 	messages   map[Dest]bool
@@ -46,25 +44,13 @@ type writer struct {
 func NewWriter(conn *Connection, listener *listener, log log15.Logger, sysErr chan<- error,
 	m *metrics.ChainMetrics, extendCall bool, weight uint64, relayer Relayer, bc *chainset.BridgeCore) *writer {
 
-	msApi, err := gsrpc.NewSubstrateAPI(conn.url)
-	if err != nil {
-		log15.Error("New Substrate API err", "err", err)
-	}
-
-	meta, err := msApi.RPC.State.GetMetadataLatest()
-	if err != nil {
-		log15.Error("GetMetadataLatest err", "err", err)
-	}
-
 	return &writer{
-		meta:       meta,
 		conn:       conn,
 		listener:   listener,
 		log:        log,
 		sysErr:     sysErr,
 		metrics:    m,
 		extendCall: extendCall,
-		msApi:      msApi,
 		relayer:    relayer,
 		maxWeight:  weight,
 		messages:   make(map[Dest]bool, InitCapacity),
@@ -82,6 +68,9 @@ func (w *writer) ResolveMessage(m msg.Message) bool {
 		w.createNativeTx(m)
 		return true
 	case msg.FungibleTransfer:
+		w.log.Info(LineLog, "DepositNonce", m.DepositNonce)
+		w.log.Info("Start Deposit...", "DepositNonce", m.DepositNonce)
+		w.log.Info(LineLog, "DepositNonce", m.DepositNonce)
 		prop, err = w.createFungibleProposal(m)
 	case msg.NonFungibleTransfer:
 		prop, err = w.createNonFungibleProposal(m)
@@ -117,12 +106,13 @@ func (w *writer) ResolveMessage(m msg.Message) bool {
 				continue
 			}
 
-			assetId , err := w.bridgeCore.ResourceIdToAssetId(w.conn.api, &w.conn.meta, prop.resourceId)
+			assetId , err := w.bridgeCore.ConvertResourceIdToAssetId(msg.ResourceId(prop.resourceId))
 			if err != nil {
 				w.logErr("rId to assetId err", err)
 			}
-
-			w.log.Info("Acknowledging proposal on chain", "nonce", prop.depositNonce, "source", prop.sourceId, "AssetId", assetId, "method", prop.method)
+			w.log.Info(LineLog, "DepositNonce", m.DepositNonce)
+			w.log.Info("End Deposit, acknowledging proposal on chain", "nonce", prop.depositNonce, "source", prop.sourceId, "AssetId", assetId)
+			w.log.Info(LineLog, "DepositNonce", m.DepositNonce)
 			if w.metrics != nil {
 				w.metrics.VotesSubmitted.Inc()
 			}
@@ -160,7 +150,8 @@ func (w *writer) checkRepeat(m msg.Message) bool {
 	return true
 }
 
-func (w *writer) redeemTx(message *Msg) (bool, MultiSignTx) { w.UpdateMetadata()
+func (w *writer) redeemTx(message *Msg) (bool, MultiSignTx) {
+	//w.UpdateMetadata()
 	m := message.m
 	types.SetSerDeOptions(types.SerDeOptions{NoPalletIndices: true})
 
@@ -227,7 +218,7 @@ func (w *writer) redeemTx(message *Msg) (bool, MultiSignTx) { w.UpdateMetadata()
 				w.log.Info(TryToApproveMultiSigTx, "Block", height, "Index", maybeTimePoint.(TimePointSafe32).Index, "depositNonce", m.DepositNonce)
 			}
 
-			mc, err := types.NewCall(w.meta, string(utils.MultisigAsMulti), w.relayer.multiSignThreshold, w.relayer.otherSignatories, maybeTimePoint, EncodeCall(c), false, maxWeight)
+			mc, err := types.NewCall(&w.conn.meta, string(utils.MultisigAsMulti), w.relayer.multiSignThreshold, w.relayer.otherSignatories, maybeTimePoint, EncodeCall(c), false, maxWeight)
 			if err != nil {
 				w.logErr(NewMultiCallError, err)
 			}
@@ -423,13 +414,6 @@ func (w *writer) isFinish(ms MultiSigAsMulti, m msg.Message) (bool, MultiSignTx)
 	}
 
 	return false, NotExecuted
-}
-
-func (w *writer) UpdateMetadata() {
-	meta, _ := w.msApi.RPC.State.GetMetadataLatest()
-	if meta != nil {
-		w.meta = meta
-	}
 }
 
 func (w *writer) getApi() (*gsrpc.SubstrateAPI, error) {

@@ -265,6 +265,7 @@ func (l *listener) logBlock(currentBlock uint64) {
 		}
 	}
 }
+
 func (l *listener) logInfo (msg string, block int64) {
 	l.log.Info(msg, "Block", block, "chain", l.cfg.name)
 }

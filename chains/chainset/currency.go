@@ -2,6 +2,8 @@ package chainset
 
 import (
 	"fmt"
+	"github.com/ethereum/go-ethereum/common"
+	"github.com/rjman-ljm/sherpax-utils/msg"
 	"github.com/rjman-ljm/substrate-go/expand/chainx/xevents"
 )
 
@@ -40,6 +42,7 @@ const (
 type Currency struct {
 	/// Set the token of the native token to zero
 	AssetId			xevents.AssetId
+	ResourceId      string
 	Name			string
 	Difference		int64
 	FixedFee		int64
@@ -47,15 +50,15 @@ type Currency struct {
 }
 
 var currencies = []Currency{
-	{OriginAsset, 	TokenKSM, 	DiffKSM, 		FixedKSMFee, ExtraFeeRate},
-	{OriginAsset, 	TokenDOT, 	DiffDOT, 		FixedDOTFee, ExtraFeeRate},
-	{OriginAsset, 	TokenPCX, 	DiffPCX, 		FixedPCXFee, ExtraFeeRate},
-	{AssetXBTC, 		TokenXBTC	, 	DiffXBTC, 	    0,			 ExtraNoneFeeRate},
-	{AssetXBNB, 		TokenXBNB, 	DiffXAsset, 	0,			 ExtraNoneFeeRate},
-	{AssetXETH, 		TokenXETH, 	DiffXAsset, 	0,			 ExtraNoneFeeRate},
-	{AssetXUSD, 		TokenXUSD, 	DiffXAsset, 	0,			 ExtraNoneFeeRate},
-	{AssetXHT, 		TokenXHT, 	DiffXAsset, 	0,			 ExtraNoneFeeRate},
-	{XAssetId, 		TokenXAsset, 	DiffXAsset, 	0,			 ExtraNoneFeeRate},
+	{OriginAsset, 	ResourceIdOrigin, TokenKSM, 	DiffKSM, 		FixedKSMFee, ExtraFeeRate},
+	{OriginAsset, 	ResourceIdOrigin, TokenDOT, 	DiffDOT, 		FixedDOTFee, ExtraFeeRate},
+	{OriginAsset, 	ResourceIdOrigin, TokenPCX, 	DiffPCX, 		FixedPCXFee, ExtraFeeRate},
+	{AssetXBTC, 		ResourceIdXBTC, TokenXBTC	, 	DiffXBTC, 	    0,			 ExtraNoneFeeRate},
+	{AssetXBNB, 		ResourceIdXBNB, TokenXBNB, 	DiffXAsset, 	0,			 ExtraNoneFeeRate},
+	{AssetXETH, 		ResourceIdXETH ,TokenXETH, 	DiffXAsset, 	0,			 ExtraNoneFeeRate},
+	{AssetXUSD, 	 	ResourceIdXUSD	,TokenXUSD, 	DiffXAsset, 	0,			 ExtraNoneFeeRate},
+	{AssetXHT, 		ResourceIdXHT, TokenXHT, 	DiffXAsset, 	0,			 ExtraNoneFeeRate},
+	{XAssetId, 		ResourceIdXAsset ,TokenXAsset, 	DiffXAsset, 	0,			 ExtraNoneFeeRate},
 }
 
 /// AssetId Type
@@ -71,16 +74,16 @@ const (
 
 const ResourceIdPrefix = "0000000000000000000000000000000000000000000000000000000000000"
 const (
-	OriginResourceId			string = ResourceIdPrefix + "000"
+	ResourceIdOrigin			string = ResourceIdPrefix + "000"
 	ResourceIdXBTC				string = ResourceIdPrefix + "001"
 	ResourceIdXBNB				string = ResourceIdPrefix + "002"
 	ResourceIdXETH				string = ResourceIdPrefix + "003"
 	ResourceIdXHT				string = ResourceIdPrefix + "004"
 	ResourceIdXUSD				string = ResourceIdPrefix + "005"
-	XResourceId					string = ResourceIdPrefix + "999"
+	ResourceIdXAsset			string = ResourceIdPrefix + "999"
 )
 
-func (bc *BridgeCore) GetCurrency(assetId xevents.AssetId) (*Currency, error) {
+func (bc *BridgeCore) GetCurrencyByAssetId(assetId xevents.AssetId) (*Currency, error) {
 	/// If token has assetId, return ChainX currency
 	for _, currency := range currencies {
 		if assetId != 0 && assetId == currency.AssetId {
@@ -93,4 +96,36 @@ func (bc *BridgeCore) GetCurrency(assetId xevents.AssetId) (*Currency, error) {
 
 	/// Currency not found
 	return nil, fmt.Errorf("unimplemented currency")
+}
+
+func (bc *BridgeCore) ConvertStringToResourceId(rId string) msg.ResourceId {
+	return msg.ResourceIdFromSlice(common.FromHex(rId))
+}
+
+func (bc *BridgeCore) GetCurrencyByResourceId(rId msg.ResourceId) (*Currency, error) {
+	for _, currency := range currencies {
+		if rId != bc.ConvertStringToResourceId(ResourceIdOrigin) && rId == bc.ConvertStringToResourceId(currency.ResourceId) {
+			return &currency, nil
+		} else if rId == bc.ConvertStringToResourceId(ResourceIdOrigin) && bc.ChainInfo.NativeToken == currency.Name {
+			/// If token is native token, check the from chain
+			return &currency, nil
+		}
+	}
+
+	/// Currency not found
+	return nil, fmt.Errorf("unimplemented currency")
+}
+
+func (bc *BridgeCore) ConvertResourceIdToAssetId(rId msg.ResourceId) (xevents.AssetId, error) {
+	for _, currency := range currencies {
+		if rId != bc.ConvertStringToResourceId(ResourceIdOrigin) && rId == bc.ConvertStringToResourceId(currency.ResourceId) {
+			return currency.AssetId, nil
+		} else if rId == bc.ConvertStringToResourceId(ResourceIdOrigin) && bc.ChainInfo.NativeToken == currency.Name {
+			/// If token is native token, check the from chain
+			return currency.AssetId, nil
+		}
+	}
+
+	/// Currency not found
+	return xevents.AssetId(0), fmt.Errorf("unimplemented currency")
 }

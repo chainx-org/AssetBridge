@@ -61,7 +61,7 @@ func (w *writer) setContract(bridge *Bridge.Bridge, asset *WETH10.WETH10) {
 // ResolveMessage handles any given message based on type
 // A bool is returned to indicate failure/success, this should be ignored except for within tests.
 func (w *writer) ResolveMessage(m msg.Message) bool {
-	w.log.Info("Attempting to resolve message", "type", m.Type, "src", m.Source, "dst", m.Destination, "nonce", m.DepositNonce, "rId", m.ResourceId.Hex(), "recipient", m.Payload[1])
+	w.log.Info("Attempting to resolve message", "type", m.Type, "src", m.Source, "dst", m.Destination, "nonce", m.DepositNonce, "recipient", m.Payload[1])
 	switch m.Type {
 	case msg.NativeTransfer:
 		return w.createNativeErc20Proposal(m)

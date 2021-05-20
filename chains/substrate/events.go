@@ -37,7 +37,7 @@ func erc20TokenTransferHandler(evtI interface{}, log log15.Logger) (msg.Message,
 	}
 
 	resourceId := msg.ResourceId(evt.ResourceId)
-	log.Info("Got fungible transfer event!", "destination", evt.Destination, "resourceId", resourceId.Hex(), "amount", evt.Amount)
+	log.Info("Got fungible transfer event", "destination", evt.Destination, "amount", evt.Amount)
 
 	return msg.NewErc20TokenTransfer(
 		0, // Unset

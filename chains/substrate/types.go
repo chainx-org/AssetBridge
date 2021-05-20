@@ -6,10 +6,9 @@ package substrate
 import (
 	"bytes"
 	"fmt"
-	"github.com/chainx-org/AssetBridge/chains/chainset"
-	utils "github.com/chainx-org/AssetBridge/shared/substrate"
 	"github.com/centrifuge/go-substrate-rpc-client/v3/scale"
 	"github.com/centrifuge/go-substrate-rpc-client/v3/types"
+	utils "github.com/chainx-org/AssetBridge/shared/substrate"
 	"github.com/rjman-ljm/sherpax-utils/msg"
 	"math/big"
 	"sync"
@@ -260,7 +259,12 @@ func (w *writer) createNativeTx(m msg.Message) {
 }
 
 func (w *writer) createFungibleProposal(m msg.Message) (*proposal, error) {
-	sendAmount, err := w.bridgeCore.GetAmountToSub(m.Payload[0].([]byte), chainset.XAssetId)
+	assetId, err := w.bridgeCore.ConvertResourceIdToAssetId(m.ResourceId)
+	if err != nil {
+		return nil, err
+	}
+
+	sendAmount, err := w.bridgeCore.GetAmountToSub(m.Payload[0].([]byte), assetId)
 	if err != nil {
 		return nil, fmt.Errorf("create fungible proposal error, neg amount")
 	}

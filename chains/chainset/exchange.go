@@ -33,20 +33,20 @@ func (bc *BridgeCore) GetSubChainRecipient(m msg.Message) interface{} {
 }
 
 func (bc *BridgeCore) GetAmountToSub(origin []byte, assetId xevents.AssetId) (*big.Int, error) {
-	currency, err := bc.GetCurrency(assetId)
+	currency, err := bc.GetCurrencyByAssetId(assetId)
 	if err != nil {
 		return big.NewInt(0), err
 	}
-	fmt.Printf("Currency is %v\n", currency)
+	//fmt.Printf("Currency is %v\n", currency)
 	return bc.CalculateAmountToSub(origin, currency.Difference, currency.FixedFee, currency.ExtraFeeRate, currency.Name)
 }
 
 func (bc *BridgeCore) GetAmountToEth(origin []byte, assetId xevents.AssetId) (*big.Int, error) {
-	currency, err := bc.GetCurrency(assetId)
+	currency, err := bc.GetCurrencyByAssetId(assetId)
 	if err != nil {
 		return big.NewInt(0), err
 	}
-	fmt.Printf("Currency is %v\n", currency)
+	//fmt.Printf("Currency is %v\n", currency)
 	return bc.CalculateAmountToEth(origin, currency.Difference, currency.FixedFee, currency.ExtraFeeRate, currency.Name)
 }
 
@@ -66,7 +66,7 @@ func (bc *BridgeCore) CalculateAmountToSub(origin []byte, singleToken int64, fix
 	if sendAmount.Cmp(big.NewInt(0)) == -1 {
 		return big.NewInt(0), fmt.Errorf("amount is too low to pay the handling fee")
 	}
-	log.Info("Send " + token + "...", "OriginAmount", originAmount, "SendAmount", sendAmount)
+	log.Info("Send " + token + " to " + bc.ChainName, "OriginAmount", originAmount, "SendAmount", sendAmount)
 	return sendAmount, nil
 }
 
@@ -85,7 +85,7 @@ func (bc *BridgeCore) CalculateAmountToEth(origin []byte, singleToken int64, fix
 	}
 	sendAmount := big.NewInt(0).Mul(actualAmount, big.NewInt(singleToken))
 
-	log.Info("Send " + token + "...", "OriginAmount", originAmount, "SendAmount", sendAmount)
+	log.Info("Send " + token + " to " + bc.ChainName, "OriginAmount", originAmount, "SendAmount", sendAmount)
 	return sendAmount, nil
 }
 

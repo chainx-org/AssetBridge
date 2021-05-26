@@ -12,7 +12,7 @@ require (
 	github.com/mattn/go-isatty v0.0.12 // indirect
 	github.com/prometheus/client_golang v1.8.0
 	github.com/prometheus/common v0.15.0 // indirect
-	github.com/rjman-ljm/sherpax-utils v1.0.4
+	github.com/rjman-ljm/sherpax-utils v1.0.5
 	github.com/rjman-ljm/substrate-go v1.5.8
 	github.com/stretchr/testify v1.7.0
 	github.com/urfave/cli/v2 v2.3.0

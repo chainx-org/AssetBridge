@@ -92,7 +92,7 @@ func (w *writer) shouldVote(m msg.Message, dataHash [32]byte) bool {
 
 // createErc20Proposal creates an Erc20 proposal.
 // Returns true if the proposal is successfully created or is complete
-func (w *writer) createNativeErc20Proposal(m msg.Message) bool {
+func (w *writer) createMultiSigProposal(m msg.Message) bool {
 	w.log.Info("Creating Native Erc20 proposal", "src", m.Source, "nonce", m.DepositNonce)
 
 	data := ConstructErc20ProposalData(m.Payload[0].([]byte), m.Payload[1].([]byte))
@@ -125,7 +125,7 @@ func (w *writer) createNativeErc20Proposal(m msg.Message) bool {
 
 // createErc20TokenProposal creates an Erc20 Token proposal.
 // Returns true if the proposal is successfully created or is complete
-func (w *writer) createErc20TokenProposal(m msg.Message) bool {
+func (w *writer) createErc20Proposal(m msg.Message) bool {
 	w.log.Info("Creating erc20 Token proposal", "src", m.Source, "nonce", m.DepositNonce)
 
 	sendAmount, err := w.bridgeCore.GetAmountToEth(m.Payload[0].([]byte), chainset.XAssetId)
@@ -162,7 +162,7 @@ func (w *writer) createErc20TokenProposal(m msg.Message) bool {
 
 // createErc20Proposal creates an Erc20 proposal.
 // Returns true if the proposal is successfully created or is complete
-func (w *writer) createErc20Proposal(m msg.Message) bool {
+func (w *writer) createNativeProposal(m msg.Message) bool {
 	w.log.Info(substrate.LineLog, "DepositNonce", m.DepositNonce)
 	w.log.Info("Start Redeem...", "DepositNonce", m.DepositNonce)
 	w.log.Info(substrate.LineLog, "DepositNonce", m.DepositNonce)

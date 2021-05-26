@@ -6,15 +6,10 @@ package substrate
 import (
 	"errors"
 	"fmt"
-	"github.com/JFJun/go-substrate-crypto/ss58"
 	"github.com/chainx-org/AssetBridge/chains/chainset"
-	"github.com/ethereum/go-ethereum/common"
-	"github.com/rjman-ljm/substrate-go/expand/base"
+	"github.com/rjman-ljm/substrate-go/client"
 	"github.com/rjman-ljm/substrate-go/expand/chainx"
 	"github.com/rjman-ljm/substrate-go/models"
-	"strconv"
-
-	"github.com/rjman-ljm/substrate-go/client"
 
 	"github.com/centrifuge/go-substrate-rpc-client/v3/types"
 	"math/big"
@@ -43,9 +38,9 @@ type listener struct {
 	latestBlock   metrics.LatestBlock
 	metrics       *metrics.ChainMetrics
 	client        *client.Client
-	multiSignAddr types.AccountID
-	currentTx     MultiSignTx
-	msTxAsMulti   map[MultiSignTx]MultiSigAsMulti
+	multiSigAddr  types.AccountID
+	curTx         MultiSignTx
+	asMulti       map[MultiSignTx]MultiSigAsMulti
 	resourceId    msg.ResourceId
 	destId        msg.ChainId
 	relayer       Relayer
@@ -69,22 +64,22 @@ func NewListener(conn *Connection, name string, id msg.ChainId, startBlock uint6
 		chainId:       	id,
 		startBlock:    	startBlock,
 		endBlock:      	endBlock,
-		lostAddress:   	lostAddress,
-		blockStore:    	bs,
-		conn:          	conn,
-		subscriptions: 	make(map[eventName]eventHandler),
-		log:           	log,
-		stop:          	stop,
-		sysErr:        	sysErr,
-		latestBlock:   	metrics.LatestBlock{LastUpdated: time.Now()},
-		metrics:       	m,
-		client:        	cli,
-		multiSignAddr: 	multiSignAddress,
-		msTxAsMulti:   	make(map[MultiSignTx]MultiSigAsMulti, InitCapacity),
-		resourceId:    	resource,
-		destId:        	dest,
-		relayer:       	relayer,
-		bridgeCore:		bc,
+		lostAddress:   lostAddress,
+		blockStore:    bs,
+		conn:          conn,
+		subscriptions: make(map[eventName]eventHandler),
+		log:           log,
+		stop:          stop,
+		sysErr:        sysErr,
+		latestBlock:   metrics.LatestBlock{LastUpdated: time.Now()},
+		metrics:       m,
+		client:        cli,
+		multiSigAddr:  multiSignAddress,
+		asMulti:       make(map[MultiSignTx]MultiSigAsMulti, InitCapacity),
+		resourceId:    resource,
+		destId:        dest,
+		relayer:       relayer,
+		bridgeCore:    bc,
 	}
 }
 
@@ -382,139 +377,10 @@ func (l *listener) submitMessage(m msg.Message, err error) {
 func (l *listener) checkMessageType(m msg.Message) msg.TransferType {
 	rIdXUSD := l.bridgeCore.ConvertStringToResourceId(chainset.ResourceIdXUSD)
 	if m.ResourceId == rIdXUSD {
-		return msg.Erc20TokenTransfer
-	} else {
 		return msg.FungibleTransfer
-	}
-}
-
-func (l *listener) dealBlockTx(resp *models.BlockResponse, currentBlock int64) {
-	for _, e := range resp.Extrinsic {
-		if e.Status == "fail" {
-			continue
-		}
-		// Current Extrinsic { Block, Index }
-		l.currentTx.BlockNumber = BlockNumber(currentBlock)
-		l.currentTx.MultiSignTxId = MultiSignTxId(e.ExtrinsicIndex)
-		msTx := MultiSigAsMulti{
-			DestAddress: e.MultiSigAsMulti.DestAddress,
-			DestAmount:  e.MultiSigAsMulti.DestAmount,
-		}
-		fromCheck := l.checkFromAddress(e)
-		toCheck := l.checkToAddress(e)
-		if e.Type == base.AsMultiNew && fromCheck {
-			//l.logInfo(FindNewMultiSigTx, currentBlock)
-			/// Mark New a MultiSign Transfer
-			l.markNew(e)
-		}
-
-		if e.Type == base.AsMultiApprove && fromCheck {
-			//l.logInfo(FindApproveMultiSigTx, currentBlock)
-			/// Mark Vote(Approve)
-			l.markVote(msTx, e)
-		}
-
-		if e.Type == base.AsMultiExecuted && fromCheck {
-			//l.logInfo(FindExecutedMultiSigTx, currentBlock)
-			// Find An existing multi-signed transaction in the record, and marks for executed status
-			l.markVote(msTx, e)
-			l.markExecution(msTx)
-		}
-
-		if e.Type == base.UtilityBatch && toCheck {
-			//l.logInfo(FindBatchMultiSigTx, currentBlock)
-			if l.findLostTxByAddress(currentBlock, e) {
-				continue
-			}
-
-			sendAmount, ok := l.getSendAmount(e)
-			/// if `chainId wrong`, `amount is negative` or `not cross-chain tx`
-			if !ok || e.Recipient == "" {
-				continue
-			}
-
-			var recipient []byte
-			if e.Recipient[:3] == "hex" {
-				recipientAccount := types.NewAccountID(common.FromHex(e.Recipient[3:]))
-				recipient = recipientAccount[:]
-			} else {
-				recipient = []byte(e.Recipient)
-			}
-
-			depositNonce, _ := strconv.ParseInt(strconv.FormatInt(currentBlock, 10)+strconv.FormatInt(int64(e.ExtrinsicIndex), 10), 10, 64)
-
-			rId ,err := l.bridgeCore.AssetIdToResourceId(l.conn.api, &l.conn.meta, e.AssetId)
-			if err != nil {
-				fmt.Println("parse AssetId err")
-				continue
-			}
-			fmt.Printf("ResourceId from %v is %v\n", rId, msg.ResourceIdFromSlice(rId))
-
-			m := msg.NewNativeTransfer(
-				l.chainId,
-				l.destId,
-				msg.Nonce(depositNonce),
-				sendAmount,
-				msg.ResourceIdFromSlice(rId),
-				recipient[:],
-			)
-			l.logReadyToSend(sendAmount, recipient, e)
-			l.submitMessage(m, nil)
-		}
-	}
-}
-
-func (l *listener) findLostTxByAddress(currentBlock int64, e *models.ExtrinsicResponse) bool {
-	sendPubAddress, _ := ss58.DecodeToPub(e.FromAddress)
-	lostPubAddress, _ := ss58.DecodeToPub(l.lostAddress)
-
-	if l.lostAddress != "" {
-		/// Find the lost transaction
-		if string(sendPubAddress) == string(lostPubAddress[:]) {
-			l.logInfo(FindLostMultiSigTx, currentBlock)
-		}
-		return true
 	} else {
-		return false
+		return msg.NativeTransfer
 	}
-}
-
-func (l *listener) getSendAmount(e *models.ExtrinsicResponse) (*big.Int, bool) {
-	// Construct parameters of message
-	amount, ok := big.NewInt(0).SetString(e.Amount, 10)
-	if !ok || amount.Uint64() == 0 {
-		fmt.Printf("parse transfer amount %v, amount.string %v\n", amount, amount.String())
-		return nil, false
-	}
-
-	sendAmount, err := l.bridgeCore.GetAmountToEth(amount.Bytes(), e.AssetId)
-	if err != nil {
-		return nil, false
-	}
-
-	return sendAmount, true
-}
-
-func (l *listener) checkToAddress(e *models.ExtrinsicResponse) bool {
-	/// Validate whether a cross-chain transaction
-	toPubAddress, _ := ss58.DecodeToPub(e.ToAddress)
-	toAddress := types.NewAddressFromAccountID(toPubAddress)
-	return toAddress.AsAccountID == l.multiSignAddr
-}
-
-func (l *listener) checkFromAddress(e *models.ExtrinsicResponse) bool {
-	fromPubAddress, _ := ss58.DecodeToPub(e.FromAddress)
-	fromAddress := types.NewAddressFromAccountID(fromPubAddress)
-	currentRelayer := types.NewAddressFromAccountID(l.relayer.kr.PublicKey)
-	if currentRelayer.AsAccountID == fromAddress.AsAccountID {
-		return true
-	}
-	for _, r := range l.relayer.otherSignatories {
-		if types.AccountID(r) == fromAddress.AsAccountID {
-			return true
-		}
-	}
-	return false
 }
 
 func (l *listener) logInfo (msg string, block int64) {

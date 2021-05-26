@@ -15,7 +15,7 @@ import (
 type eventName string
 type eventHandler func(interface{}, log15.Logger) (msg.Message, error)
 
-const Erc20TokenTransfer eventName = "Erc20TokenTransfer"
+const NativeTransfer eventName = "NativeTransfer"
 const FungibleTransfer eventName = "FungibleTransfer"
 const NonFungibleTransfer eventName = "NonFungibleTransfer"
 const GenericTransfer eventName = "GenericTransfer"
@@ -24,13 +24,13 @@ var Subscriptions = []struct {
 	name    eventName
 	handler eventHandler
 }{
-	{Erc20TokenTransfer, erc20TokenTransferHandler},
+	{NativeTransfer, nativeTransferHandler},
 	{FungibleTransfer, fungibleTransferHandler},
 	{NonFungibleTransfer, nonFungibleTransferHandler},
 	{GenericTransfer, genericTransferHandler},
 }
 
-func erc20TokenTransferHandler(evtI interface{}, log log15.Logger) (msg.Message, error) {
+func nativeTransferHandler(evtI interface{}, log log15.Logger) (msg.Message, error) {
 	evt, ok := evtI.(events.EventFungibleTransfer)
 	if !ok {
 		return msg.Message{}, fmt.Errorf("failed to cast EventFungibleTransfer type")
@@ -39,7 +39,7 @@ func erc20TokenTransferHandler(evtI interface{}, log log15.Logger) (msg.Message,
 	resourceId := msg.ResourceId(evt.ResourceId)
 	log.Info("Got fungible transfer event", "destination", evt.Destination, "amount", evt.Amount)
 
-	return msg.NewErc20TokenTransfer(
+	return msg.NewNativeTransfer(
 		0, // Unset
 		msg.ChainId(evt.Destination),
 		msg.Nonce(evt.DepositNonce),

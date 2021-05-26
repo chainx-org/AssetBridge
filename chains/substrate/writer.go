@@ -64,8 +64,8 @@ func (w *writer) ResolveMessage(m msg.Message) bool {
 
 	// Construct the Transaction
 	switch m.Type {
-	case msg.NativeTransfer:
-		w.createNativeTx(m)
+	case msg.MultiSigTransfer:
+		w.createMultiSigTx(m)
 		return true
 	case msg.FungibleTransfer:
 		w.log.Info(LineLog, "DepositNonce", m.DepositNonce)
@@ -177,7 +177,7 @@ func (w *writer) redeemTx(message *Msg) (bool, MultiSignTx) {
 			maxWeight := types.Weight(0)
 
 			// Traverse all of matched Tx, included New、Approve、Executed
-			for _, ms := range w.listener.msTxAsMulti {
+			for _, ms := range w.listener.asMulti {
 				// Validate parameter
 				var destAddress string
 				if m.Source == chainset.IdBSC || m.Source == chainset.IdKovan || m.Source == chainset.IdHeco{
@@ -195,10 +195,10 @@ func (w *writer) redeemTx(message *Msg) (bool, MultiSignTx) {
 					}
 
 					/// Match the correct TimePoint
-					height := types.U32(ms.OriginMsTx.BlockNumber)
+					height := types.U32(ms.OriginMsTx.Block)
 					maybeTimePoint = TimePointSafe32{
 						Height: types.NewOptionU32(height),
-						Index:  types.U32(ms.OriginMsTx.MultiSignTxId),
+						Index:  types.U32(ms.OriginMsTx.txId),
 					}
 					maxWeight = types.Weight(w.maxWeight)
 					break
@@ -207,7 +207,7 @@ func (w *writer) redeemTx(message *Msg) (bool, MultiSignTx) {
 				}
 			}
 
-			if len(w.listener.msTxAsMulti) == 0 {
+			if len(w.listener.asMulti) == 0 {
 				maybeTimePoint = []byte{}
 			}
 
@@ -263,7 +263,7 @@ func (w *writer) getCall(m msg.Message) (types.Call, *big.Int, bool, bool, Multi
 }
 
 func (w *writer) checkRedeem(m msg.Message, actualAmount *big.Int) (bool, MultiSignTx) {
-	for _, ms := range w.listener.msTxAsMulti {
+	for _, ms := range w.listener.asMulti {
 		// Validate parameter
 		var destAddress string
 		if m.Source == chainset.IdBSC || m.Source == chainset.IdKovan || m.Source == chainset.IdHeco {
@@ -408,7 +408,7 @@ func (w *writer) isFinish(ms MultiSigAsMulti, m msg.Message) (bool, MultiSignTx)
 		}
 
 		if isVote {
-			w.log.Info("relayer has vote, wait others!", "DepositNonce", m.DepositNonce, "Relayer", w.relayer.currentRelayer, "Block", ms.OriginMsTx.BlockNumber, "Index", ms.OriginMsTx.MultiSignTxId)
+			w.log.Info("relayer has vote, wait others!", "DepositNonce", m.DepositNonce, "Relayer", w.relayer.currentRelayer, "Block", ms.OriginMsTx.Block, "Index", ms.OriginMsTx.txId)
 			return true, YesVoted
 		}
 	}

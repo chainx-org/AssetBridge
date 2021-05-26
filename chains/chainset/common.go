@@ -24,13 +24,13 @@ const (
 	IdChainXBTCV2     		msg.ChainId = 14
 )
 
-var NativeLimit msg.ChainId = 100
+var MultiSigLimit msg.ChainId = 100
 
 const XParameter uint8 = 255
 
 // IsNativeTransfer Chain id distinguishes Tx types(Native, Fungible...)
-func IsNativeTransfer(id msg.ChainId) bool {
-	return id <= NativeLimit
+func IsMultiSigTransfer(id msg.ChainId) bool {
+	return id <= MultiSigLimit
 }
 
 func (bc *BridgeCore) InitializeClientPrefix(cli *client.Client) {

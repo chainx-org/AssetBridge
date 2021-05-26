@@ -218,9 +218,9 @@ func (l *listener) getDepositEventsForBlock(latestBlock *big.Int) error {
 			return fmt.Errorf("failed to get handler from resource ID %x", rId)
 		}
 
-		if addr == l.cfg.erc20HandlerContract && chainset.IsNativeTransfer(destId) {
-			m, err = l.handleNativeDepositedEvent(destId, nonce)
-		} else if addr == l.cfg.erc20HandlerContract && !chainset.IsNativeTransfer(destId) {
+		if addr == l.cfg.erc20HandlerContract && chainset.IsMultiSigTransfer(destId) {
+			m, err = l.handleMultiSigDepositedEvent(destId, nonce)
+		} else if addr == l.cfg.erc20HandlerContract && !chainset.IsMultiSigTransfer(destId) {
 			m, err = l.handleErc20DepositedEvent(destId, nonce)
 		} else if addr == l.cfg.erc721HandlerContract {
 			m, err = l.handleErc721DepositedEvent(destId, nonce)

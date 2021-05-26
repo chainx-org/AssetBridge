@@ -59,18 +59,18 @@ const (
 )
 
 var UnKnownError = MultiSignTx{
-	BlockNumber:   -2,
-	MultiSignTxId: 0,
+	Block: -2,
+	txId:  0,
 }
 
 var NotExecuted = MultiSignTx{
-	BlockNumber:   -1,
-	MultiSignTxId: 0,
+	Block: -1,
+	txId:  0,
 }
 
 var YesVoted = MultiSignTx{
-	BlockNumber:   -1,
-	MultiSignTxId: 1,
+	Block: -1,
+	txId:  1,
 }
 
 type TimePointSafe32 struct {
@@ -157,11 +157,11 @@ func (p *proposal) encode() ([]byte, error) {
 	}{p.depositNonce, p.call})
 }
 
-func (w *writer) createNativeTx(m msg.Message) {
+func (w *writer) createMultiSigTx(m msg.Message) {
+	/// If there is a duplicate transaction, wait for it to complete
 	w.checkRepeat(m)
 
 	if m.Destination != w.listener.chainId {
-		w.log.Info("Not Mine", "msg.DestId", m.Destination, "w.l.chainId", w.listener.chainId)
 		return
 	}
 
@@ -204,7 +204,7 @@ func (w *writer) createNativeTx(m msg.Message) {
 				var mutex sync.Mutex
 				mutex.Lock()
 
-				/// If currentTx is UnKnownError
+				/// If curTx is UnKnownError
 				if currentTx == UnKnownError {
 					w.log.Error(MultiSigExtrinsicError, "DepositNonce", m.DepositNonce)
 
@@ -212,7 +212,7 @@ func (w *writer) createNativeTx(m msg.Message) {
 					mutex.Lock()
 
 					/// Delete Listener msTx
-					delete(w.listener.msTxAsMulti, currentTx)
+					delete(w.listener.asMulti, currentTx)
 
 					/// Delete Message
 					dm := Dest{
@@ -226,20 +226,20 @@ func (w *writer) createNativeTx(m msg.Message) {
 					break
 				}
 
-				/// If currentTx is voted
+				/// If curTx is voted
 				if currentTx == YesVoted {
 					message.ok = true
 					time.Sleep(RoundInterval * time.Duration(w.relayer.totalRelayers) / 2)
 				}
 				/// Executed or UnKnownError
 				if currentTx != YesVoted && currentTx != NotExecuted && currentTx != UnKnownError {
-					w.log.Info(MultiSigExtrinsicExecuted, "DepositNonce", m.DepositNonce, "OriginBlock", currentTx.BlockNumber)
+					w.log.Info(MultiSigExtrinsicExecuted, "DepositNonce", m.DepositNonce, "OriginBlock", currentTx.Block)
 
 					var mutex sync.Mutex
 					mutex.Lock()
 
 					/// Delete Listener msTx
-					delete(w.listener.msTxAsMulti, currentTx)
+					delete(w.listener.asMulti, currentTx)
 
 					/// Delete Message
 					dm := Dest{

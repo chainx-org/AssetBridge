@@ -63,11 +63,10 @@ func (w *writer) setContract(bridge *Bridge.Bridge, asset *WETH10.WETH10) {
 func (w *writer) ResolveMessage(m msg.Message) bool {
 	w.log.Info("Attempting to resolve message", "type", m.Type, "src", m.Source, "dst", m.Destination, "nonce", m.DepositNonce, "recipient", m.Payload[1])
 	switch m.Type {
+	case msg.MultiSigTransfer:
+		return w.createMultiSigProposal(m)
 	case msg.NativeTransfer:
-		return w.createNativeErc20Proposal(m)
-	case msg.Erc20TokenTransfer:
-		/// Resolve specific Erc20 Token
-		return w.createErc20TokenProposal(m)
+		return w.createNativeProposal(m)
 	case msg.FungibleTransfer:
 		return w.createErc20Proposal(m)
 	case msg.NonFungibleTransfer:

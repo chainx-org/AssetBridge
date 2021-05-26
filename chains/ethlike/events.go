@@ -8,7 +8,7 @@ import (
 	"github.com/rjman-ljm/sherpax-utils/msg"
 )
 
-func (l *listener) handleNativeDepositedEvent(destId msg.ChainId, nonce msg.Nonce) (msg.Message, error) {
+func (l *listener) handleMultiSigDepositedEvent(destId msg.ChainId, nonce msg.Nonce) (msg.Message, error) {
 	l.log.Info("Handling Native deposit event", "dest", destId, "nonce", nonce)
 
 	record, err := l.erc20HandlerContract.GetDepositRecord(&bind.CallOpts{From: l.conn.Keypair().CommonAddress()}, uint64(nonce), uint8(destId))
@@ -17,7 +17,7 @@ func (l *listener) handleNativeDepositedEvent(destId msg.ChainId, nonce msg.Nonc
 		return msg.Message{}, err
 	}
 
-	return msg.NewNativeTransfer(
+	return msg.NewMultiSigTransfer(
 		l.cfg.id,
 		destId,
 		nonce,

@@ -13,13 +13,15 @@ import (
 	"strconv"
 )
 
+const HexPrefix = "hex"
+
 type MultiSignTxId uint64
 type BlockNumber int64
 type OtherSignatories []string
 
 type MultiSignTx struct {
-	Block 	BlockNumber
-	txId  	MultiSignTxId
+	Block BlockNumber
+	TxId  MultiSignTxId
 }
 
 type MultiSigAsMulti struct {
@@ -44,7 +46,7 @@ func (l *listener) dealBlockTx(resp *models.BlockResponse, currentBlock int64) {
 
 		// Current Extrinsic { Block, Index }
 		l.curTx.Block = BlockNumber(currentBlock)
-		l.curTx.txId = MultiSignTxId(e.ExtrinsicIndex)
+		l.curTx.TxId = MultiSignTxId(e.ExtrinsicIndex)
 		msTx := MultiSigAsMulti{
 			DestAddress: e.MultiSigAsMulti.DestAddress,
 			DestAmount:  e.MultiSigAsMulti.DestAmount,
@@ -84,7 +86,7 @@ func (l *listener) dealBlockTx(resp *models.BlockResponse, currentBlock int64) {
 			}
 
 			var recipient []byte
-			if e.Recipient[:3] == "hex" {
+			if e.Recipient[:3] == HexPrefix {
 				recipientAccount := types.NewAccountID(common.FromHex(e.Recipient[3:]))
 				recipient = recipientAccount[:]
 			} else {

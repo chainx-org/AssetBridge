@@ -231,7 +231,7 @@ func (l *listener) pollBlocks() error {
 			}
 
 			/// Listen Native Transfer
-			l.processBlock(int64(currentBlock))
+			l.processBlockExtrinsic(int64(currentBlock))
 
 			/// Listen Erc20/Erc721/Generic Transfer
 			// Get hash for latest block, sleep and retry if not ready
@@ -273,10 +273,11 @@ func (l *listener) pollBlocks() error {
 	}
 }
 
-func (l *listener) processBlock(currentBlock int64) {
+func (l *listener) processBlockExtrinsic(currentBlock int64) {
 	retryTimes := BlockRetryLimit
 	for {
 		if retryTimes == 0 {
+			/// Maybe due to unresolved events
 			break
 		}
 

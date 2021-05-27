@@ -545,8 +545,8 @@ github.com/rjeczalik/notify v0.9.1 h1:CLCKso/QK1snAlnhNR/CNvNiFU2saUtjV0bx3EwNeC
 github.com/rjeczalik/notify v0.9.1/go.mod h1:rKwnCoCGeuQnwBtTSPL9Dad03Vh2n40ePRrjvIXnJho=
 github.com/rjman-ljm/sherpax-utils v1.0.5 h1:4Yp4CaHPAp/tsHSEbaoHEfDXZgYewsUngAOVol28Pv0=
 github.com/rjman-ljm/sherpax-utils v1.0.5/go.mod h1:fD/c4srM1VPlDUpSxRYQtYXuRqRe+dJfv8iqspfbiCw=
-github.com/rjman-ljm/substrate-go v1.5.8 h1:4d3TA6xEMNoQH1kdsoIoYxVAPMYWgqDsmrhlcNISH6g=
-github.com/rjman-ljm/substrate-go v1.5.8/go.mod h1:BFUC73o0pqCfBN1+h1xZQY4+kfZnb/Jb1VrPpk1RH24=
+github.com/rjman-ljm/substrate-go v1.5.9 h1:oWIhCrhtfEQm780rvdjh6rf6lRd3uPUspusfOonHJuE=
+github.com/rjman-ljm/substrate-go v1.5.9/go.mod h1:BFUC73o0pqCfBN1+h1xZQY4+kfZnb/Jb1VrPpk1RH24=
 github.com/rogpeppe/fastuuid v0.0.0-20150106093220-6724a57986af/go.mod h1:XWv6SoW27p1b0cqNHllgS5HIMJraePCO15w5zCzIWYg=
 github.com/rogpeppe/go-internal v1.3.0/go.mod h1:M8bDsm7K2OlrFYOpmOWEs/qY81heoFRclV5y23lUDJ4=
 github.com/rs/cors v0.0.0-20160617231935-a62a804a8a00/go.mod h1:gFx+x8UowdsKA9AchylcLynDq+nNFfI8FkUZdN/jGCU=

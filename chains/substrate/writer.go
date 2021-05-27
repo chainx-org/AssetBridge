@@ -198,7 +198,7 @@ func (w *writer) redeemTx(message *Msg) (bool, MultiSignTx) {
 					height := types.U32(ms.OriginMsTx.Block)
 					maybeTimePoint = TimePointSafe32{
 						Height: types.NewOptionU32(height),
-						Index:  types.U32(ms.OriginMsTx.txId),
+						Index:  types.U32(ms.OriginMsTx.TxId),
 					}
 					maxWeight = types.Weight(w.maxWeight)
 					break
@@ -408,7 +408,7 @@ func (w *writer) isFinish(ms MultiSigAsMulti, m msg.Message) (bool, MultiSignTx)
 		}
 
 		if isVote {
-			w.log.Info("relayer has vote, wait others!", "DepositNonce", m.DepositNonce, "Relayer", w.relayer.currentRelayer, "Block", ms.OriginMsTx.Block, "Index", ms.OriginMsTx.txId)
+			w.log.Info("relayer has vote, wait others!", "DepositNonce", m.DepositNonce, "Relayer", w.relayer.currentRelayer, "Block", ms.OriginMsTx.Block, "Index", ms.OriginMsTx.TxId)
 			return true, YesVoted
 		}
 	}

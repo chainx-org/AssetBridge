@@ -60,17 +60,17 @@ const (
 
 var UnKnownError = MultiSignTx{
 	Block: -2,
-	txId:  0,
+	TxId:  0,
 }
 
 var NotExecuted = MultiSignTx{
 	Block: -1,
-	txId:  0,
+	TxId:  0,
 }
 
 var YesVoted = MultiSignTx{
 	Block: -1,
-	txId:  1,
+	TxId:  1,
 }
 
 type TimePointSafe32 struct {

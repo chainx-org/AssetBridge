@@ -64,10 +64,12 @@ func (w *writer) ResolveMessage(m msg.Message) bool {
 	w.log.Info("Attempting to resolve message", "type", m.Type, "src", m.Source, "dst", m.Destination, "nonce", m.DepositNonce, "recipient", m.Payload[1])
 	switch m.Type {
 	case msg.MultiSigTransfer:
+		/// Amount Aleady Converted
 		return w.createMultiSigProposal(m)
 	case msg.NativeTransfer:
 		return w.createNativeProposal(m)
 	case msg.FungibleTransfer:
+		/// Need to convert amount
 		return w.createErc20Proposal(m)
 	case msg.NonFungibleTransfer:
 		return w.createErc721Proposal(m)

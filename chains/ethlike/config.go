@@ -44,7 +44,7 @@ var (
 type Config struct {
 	name                   string      // Human-readable chain name
 	id                     msg.ChainId // ChainID
-	endpoint               string      // url for rpc endpoint
+	endpoint               []string      // url for rpc endpoint
 	from                   string      // address of key to use
 	keystorePath           string      // Location of keyfiles
 	blockstorePath         string

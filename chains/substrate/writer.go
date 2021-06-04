@@ -7,15 +7,14 @@ import (
 	"errors"
 	"fmt"
 	"github.com/ChainSafe/log15"
-	"github.com/chainx-org/AssetBridge/chains/chainset"
-	utils "github.com/chainx-org/AssetBridge/shared/substrate"
 	gsrpc "github.com/centrifuge/go-substrate-rpc-client/v3"
 	"github.com/centrifuge/go-substrate-rpc-client/v3/types"
+	"github.com/chainx-org/AssetBridge/chains/chainset"
+	utils "github.com/chainx-org/AssetBridge/shared/substrate"
 	"github.com/rjman-ljm/sherpax-utils/core"
 	metrics "github.com/rjman-ljm/sherpax-utils/metrics/types"
 	"github.com/rjman-ljm/sherpax-utils/msg"
 	"github.com/rjman-ljm/substrate-go/expand/chainx/xevents"
-	utils2 "github.com/rjman-ljm/substrate-go/utils"
 	"math/big"
 	"sync"
 	"time"
@@ -69,7 +68,7 @@ func (w *writer) ResolveMessage(m msg.Message) bool {
 		return true
 	case msg.FungibleTransfer:
 		w.log.Info(LineLog, "DepositNonce", m.DepositNonce)
-		w.log.Info("Start Deposit...", "DepositNonce", m.DepositNonce)
+		w.log.Info("Start Issue...", "DepositNonce", m.DepositNonce)
 		w.log.Info(LineLog, "DepositNonce", m.DepositNonce)
 		prop, err = w.createFungibleProposal(m)
 	case msg.NonFungibleTransfer:
@@ -111,7 +110,7 @@ func (w *writer) ResolveMessage(m msg.Message) bool {
 				w.logErr("rId to assetId err", err)
 			}
 			w.log.Info(LineLog, "DepositNonce", m.DepositNonce)
-			w.log.Info("End Deposit, acknowledging proposal on chain", "nonce", prop.depositNonce, "source", prop.sourceId, "AssetId", assetId)
+			w.log.Info("End Issue, acknowledging proposal on chain", "nonce", prop.depositNonce, "source", prop.sourceId, "AssetId", assetId)
 			w.log.Info(LineLog, "DepositNonce", m.DepositNonce)
 			if w.metrics != nil {
 				w.metrics.VotesSubmitted.Inc()
@@ -150,7 +149,7 @@ func (w *writer) checkRepeat(m msg.Message) bool {
 	return true
 }
 
-func (w *writer) redeemTx(message *Msg) (bool, MultiSignTx) {
+func (w *writer) redeemTx(message *Msg) (bool, multiSigTx) {
 	//w.UpdateMetadata()
 	m := message.m
 	types.SetSerDeOptions(types.SerDeOptions{NoPalletIndices: true})
@@ -160,35 +159,35 @@ func (w *writer) redeemTx(message *Msg) (bool, MultiSignTx) {
 		time.Sleep(RoundInterval)
 	}()
 
-	/// BEGIN: Create a call of MultiSignTransfer
-	c, actualAmount, ok, isFinish, currentTx := w.getCall(m)
+	/// BEGIN: Create a call of multiSigTransfer
+	c, ok, isFinish, currentTx := w.getCall(m)
 	if !ok {
 		return isFinish, currentTx
 	}
 
+	actualAmount, err := w.getSendToSubAmount(m, w.getRedeemAssetId(m))
+	if err != nil {
+		w.log.Error(RedeemNegAmountError, "Error", err)
+		return isFinish, UnKnownError
+	}
+
 	for {
-		processRound := (w.relayer.currentRelayer + uint64(m.DepositNonce)) % w.relayer.totalRelayers
+		processRound := (w.relayer.relayerId + uint64(m.DepositNonce)) % w.relayer.totalRelayers
 		round, height := w.getRound()
 		blockRound := round.blockRound.Uint64()
 		if blockRound == processRound && !message.ok {
-			fmt.Printf("Relayer#%v solve %v in block#%v\n", w.relayer.currentRelayer, round, height)
-			// Try to find a exist MultiSignTx
+			fmt.Printf("Relayer#%v solve %v in block#%v\n", w.relayer.relayerId, round, height)
+			// Try to find a exist multiSigTx
 			var maybeTimePoint interface{}
 			maxWeight := types.Weight(0)
 
 			// Traverse all of matched Tx, included New、Approve、Executed
 			for _, ms := range w.listener.asMulti {
 				// Validate parameter
-				var destAddress string
-				if m.Source == chainset.IdBSC || m.Source == chainset.IdKovan || m.Source == chainset.IdHeco{
-					dest := types.NewAddressFromAccountID(m.Payload[1].([]byte)).AsAccountID
-					destAddress = utils2.BytesToHex(dest[:])
-				} else {
-					destAddress = string(m.Payload[1].([]byte))[2:]
-				}
-
-				if ms.DestAddress == destAddress && ms.DestAmount == actualAmount.String() {
-					/// Once MultiSign Extrinsic is executed, stop sending Extrinsic to Polkadot
+				fmt.Printf("verify %v\n", w.verifyRedeemAddress(m.Payload[1].([]byte), ms.DestAddress))
+				fmt.Printf("m.Payload[1].([]byte) is %v\n, ms.DestAddress is %v\n", m.Payload[1].([]byte), ms.DestAddress)
+				if w.verifyRedeemAddress(m.Payload[1].([]byte), ms.DestAddress) && ms.DestAmount == actualAmount.String() {
+					/// Once multiSig Extrinsic is executed, stop sending Extrinsic to Polkadot
 					finished, executed := w.isFinish(ms, m)
 					if finished {
 						return finished, executed
@@ -218,7 +217,7 @@ func (w *writer) redeemTx(message *Msg) (bool, MultiSignTx) {
 				w.log.Info(TryToApproveMultiSigTx, "Block", height, "Index", maybeTimePoint.(TimePointSafe32).Index, "depositNonce", m.DepositNonce)
 			}
 
-			mc, err := types.NewCall(&w.conn.meta, string(utils.MultisigAsMulti), w.relayer.multiSignThreshold, w.relayer.otherSignatories, maybeTimePoint, EncodeCall(c), false, maxWeight)
+			mc, err := types.NewCall(&w.conn.meta, string(utils.MultisigAsMulti), w.relayer.multiSigThreshold, w.relayer.otherSignatories, maybeTimePoint, EncodeCall(c), false, maxWeight)
 			if err != nil {
 				w.logErr(NewMultiCallError, err)
 			}
@@ -226,6 +225,9 @@ func (w *writer) redeemTx(message *Msg) (bool, MultiSignTx) {
 			w.submitTx(mc)
 			return false, NotExecuted
 		} else {
+			if message.ok {
+				fmt.Printf("%v hasVote, check tx status\n", w.relayer.relayerId)
+			}
 			finished, executed := w.checkRedeem(m, actualAmount)
 			if finished {
 				return finished, executed
@@ -237,48 +239,71 @@ func (w *writer) redeemTx(message *Msg) (bool, MultiSignTx) {
 	}
 }
 
-func (w *writer) getCall(m msg.Message) (types.Call, *big.Int, bool, bool, MultiSignTx){
-	var c types.Call
+func (w *writer) getRedeemAssetId(m msg.Message) xevents.AssetId {
 	var assetId xevents.AssetId
-
+	/// GetResourceId <- AssetId
 	if m.Destination == chainset.IdChainXBTCV1 || m.Destination == chainset.IdChainXBTCV2 {
 		assetId = chainset.AssetXBTC
 	} else {
 		assetId = chainset.OriginAsset
 	}
-
-	/// Get SendAmount
-	sendAmount, err := w.bridgeCore.GetAmountToSub(m.Payload[0].([]byte), assetId)
-	if err != nil {
-		w.log.Error(RedeemNegAmountError, "Error", err)
-		return types.Call{}, nil, false, true, UnKnownError
-	}
-
-	c, err = w.bridgeCore.MakeCrossChainTansferCall(m, &w.conn.meta, assetId)
-	if err != nil {
-		w.log.Error(NewCrossChainTransferCallError, "Error", err)
-		return types.Call{}, nil, false, true, UnKnownError
-	}
-	return c, sendAmount, true, false, NotExecuted
+	return assetId
 }
 
-func (w *writer) checkRedeem(m msg.Message, actualAmount *big.Int) (bool, MultiSignTx) {
+func (w *writer) getSendToSubAmount(m msg.Message, assetId xevents.AssetId) (*big.Int, error) {
+	sendAmount, err := w.bridgeCore.GetAmountToSub(m.Payload[0].([]byte), assetId)
+	if err != nil {
+		return nil, fmt.Errorf("eth2sub redeem a neg amount")
+	}
+
+	return sendAmount, nil
+}
+func (w *writer) ConvertToEthMessage(m msg.Message) (msg.Message, error) {
+	originAmount := big.NewInt(0).SetBytes(m.Payload[0].([]byte))
+	m.Payload[0] = big.NewInt(0).Mul(originAmount, big.NewInt(chainset.DiffXAsset)).Bytes()
+
+	return m, nil
+}
+
+func (w *writer) getCall(m msg.Message) (types.Call, bool, bool, multiSigTx) {
+	var c types.Call
+	var err error
+
+	c, err = w.bridgeCore.MakeCrossChainTansferCall(m, &w.conn.meta, w.getRedeemAssetId(m))
+	if err != nil {
+		w.log.Error(NewCrossChainTransferCallError, "Error", err)
+		return types.Call{}, false, true, UnKnownError
+	}
+	return c, true, false, NotExecuted
+}
+
+func (w *writer) checkRedeem(m msg.Message, actualAmount *big.Int) (bool, multiSigTx) {
 	for _, ms := range w.listener.asMulti {
 		// Validate parameter
-		var destAddress string
-		if m.Source == chainset.IdBSC || m.Source == chainset.IdKovan || m.Source == chainset.IdHeco {
-			dest := types.NewAddressFromAccountID(m.Payload[1].([]byte)).AsAccountID
-			destAddress = utils2.BytesToHex(dest[:])
-		} else {
-			destAddress = string(m.Payload[1].([]byte))[2:]
-		}
+		//var destAddress string
+		//if m.Source == chainset.IdBSC || m.Source == chainset.IdKovan || m.Source == chainset.IdHeco {
+		//	dest := types.NewAddressFromAccountID(m.Payload[1].([]byte)).AsAccountID
+		//	destAddress = utils2.BytesToHex(dest[:])
+		//} else {
+		//	destAddress = string(m.Payload[1].([]byte))[2:]
+		//}
 
-		if ms.DestAddress == destAddress && ms.DestAmount == actualAmount.String() {
-			/// Once MultiSign Extrinsic is executed, stop sending Extrinsic to Polkadot
+		if w.verifyRedeemAddress(m.Payload[1].([]byte), ms.DestAddress) && ms.DestAmount == actualAmount.String() {
+			/// Once multiSig Extrinsic is executed, stop sending Extrinsic to Polkadot
 			return w.isFinish(ms, m)
 		}
 	}
 	return false, NotExecuted
+}
+
+func (w *writer) verifyRedeemAddress(msgAddress []byte, msAddress string) bool {
+	destAddress := types.NewMultiAddressFromAccountID(msgAddress)
+	sendAddress, err := types.NewMultiAddressFromHexAccountID("0x"+msAddress)
+	if err != nil {
+		fmt.Printf("parse ms.DestAddress err")
+		return false
+	}
+	return destAddress.AsID == sendAddress.AsID
 }
 
 func (w *writer) submitTx(c types.Call) {
@@ -344,7 +369,7 @@ func (w *writer) submitTx(c types.Call) {
 			TransactionVersion: rv.TransactionVersion,
 		}
 
-		// Create and Sign the MultiSign
+		// Create and Sign the multiSig
 		ext := types.NewExtrinsic(c)
 
 		/// ChainX V1 still use `Address` type
@@ -354,7 +379,7 @@ func (w *writer) submitTx(c types.Call) {
 			err = ext.Sign(w.relayer.kr, o)
 		}
 		if err != nil {
-			w.log.Error(SignMultiSignTxFailed, "Failed", err)
+			w.log.Error(SignmultiSigTxFailed, "Failed", err)
 			break
 		}
 
@@ -366,13 +391,13 @@ func (w *writer) submitTx(c types.Call) {
 }
 
 func (w *writer) getRound() (Round, uint64) {
-	finalizedHash, err := w.listener.client.Api.RPC.Chain.GetFinalizedHead()
+	finalizedHash, err := w.listener.conn.cli.Api.RPC.Chain.GetFinalizedHead()
 	if err != nil {
 		w.listener.log.Error("Writer Failed to fetch finalized hash", "err", err)
 	}
 
 	// Get finalized block header
-	finalizedHeader, err := w.listener.client.Api.RPC.Chain.GetHeader(finalizedHash)
+	finalizedHeader, err := w.listener.conn.cli.Api.RPC.Chain.GetHeader(finalizedHash)
 	if err != nil {
 		w.listener.log.Error("Failed to fetch finalized header", "err", err)
 	}
@@ -389,7 +414,7 @@ func (w *writer) getRound() (Round, uint64) {
 	return round, blockHeight.Uint64()
 }
 
-func (w *writer) isFinish(ms MultiSigAsMulti, m msg.Message) (bool, MultiSignTx) {
+func (w *writer) isFinish(ms MultiSigAsMulti, m msg.Message) (bool, multiSigTx) {
 	/// Check isExecuted
 	if ms.Executed {
 		return true, ms.OriginMsTx
@@ -408,7 +433,7 @@ func (w *writer) isFinish(ms MultiSigAsMulti, m msg.Message) (bool, MultiSignTx)
 		}
 
 		if isVote {
-			w.log.Info("relayer has vote, wait others!", "DepositNonce", m.DepositNonce, "Relayer", w.relayer.currentRelayer, "Block", ms.OriginMsTx.Block, "Index", ms.OriginMsTx.TxId)
+			w.log.Info("relayer has vote, wait others!", "DepositNonce", m.DepositNonce, "Relayer", w.relayer.relayerId, "Block", ms.OriginMsTx.Block, "Index", ms.OriginMsTx.TxId)
 			return true, YesVoted
 		}
 	}

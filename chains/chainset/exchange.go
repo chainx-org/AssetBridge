@@ -9,27 +9,48 @@ import (
 	"math/big"
 )
 
-func (bc *BridgeCore) GetSubChainRecipient(m msg.Message) interface{} {
+func (bc *BridgeCore) GetSubChainRecipient(m msg.Message) (interface{}, error) {
+	originRecipient := string(m.Payload[1].([]byte))
+	fmt.Printf("Receive address: %v\n", m.Payload[1].([]byte))
+	/// Convert publicKey to accountId
+	if originRecipient[:2] == "0x" {
+		accountId, err := types.HexDecodeString(originRecipient)
+		if err != nil {
+			return nil, err
+		}
+		m.Payload[1] = accountId
+	}
+	fmt.Printf("Resolve address: %v\n", m.Payload[1].([]byte))
+
 	var multiAddressRecipient types.MultiAddress
 	var addressRecipient types.Address
 
 	// TODO: modify deal method
-	if m.Source == IdBSC || m.Source == IdKovan || m.Source == IdHeco {
-		multiAddressRecipient = types.NewMultiAddressFromAccountID(m.Payload[1].([]byte))
-		addressRecipient = types.NewAddressFromAccountID(m.Payload[1].([]byte))
-	} else {
-		multiAddressRecipient, _ = types.NewMultiAddressFromHexAccountID(string(m.Payload[1].([]byte)))
-		addressRecipient, _ = types.NewAddressFromHexAccountID(string(m.Payload[1].([]byte)))
-	}
+	//if m.Source == IdBSC || m.Source == IdKovan || m.Source == IdHeco {
+	multiAddressRecipient = types.NewMultiAddressFromAccountID(m.Payload[1].([]byte))
+	addressRecipient = types.NewAddressFromAccountID(m.Payload[1].([]byte))
+	//} else {
+	//	multiAddressRecipient, _ = types.NewMultiAddressFromHexAccountID(string(m.Payload[1].([]byte)))
+	//	addressRecipient, _ = types.NewAddressFromHexAccountID(string(m.Payload[1].([]byte)))
+	//}
 
 	chainType := bc.ChainInfo.Type
 	if chainType == ChainXAssetV1Like || chainType == ChainXV1Like {
-		//fmt.Println("Return address recipient")
-		return addressRecipient
+		fmt.Printf("Send to `Address` recipient %v\n", addressRecipient.AsAccountID)
+		return addressRecipient, nil
 	} else {
-		//fmt.Println("Return MultiAddress recipient")
-		return multiAddressRecipient
+		fmt.Printf("Send to `MultiAddress` recipient %v\n", multiAddressRecipient.AsID)
+		return multiAddressRecipient, nil
 	}
+}
+
+func (bc *BridgeCore) GetAmountFromSubToSub(origin []byte, assetId xevents.AssetId) (*big.Int, error) {
+	currency, err := bc.GetCurrencyByAssetId(assetId)
+	if err != nil {
+		return big.NewInt(0), err
+	}
+	//fmt.Printf("Currency is %v\n", currency)
+	return bc.CalculateAmountToSub(origin, 1, currency.FixedFee, currency.ExtraFeeRate, currency.Name)
 }
 
 func (bc *BridgeCore) GetAmountToSub(origin []byte, assetId xevents.AssetId) (*big.Int, error) {
@@ -66,7 +87,7 @@ func (bc *BridgeCore) CalculateAmountToSub(origin []byte, singleToken int64, fix
 	if sendAmount.Cmp(big.NewInt(0)) == -1 {
 		return big.NewInt(0), fmt.Errorf("amount is too low to pay the handling fee")
 	}
-	log.Info("Send " + token + " to " + bc.ChainName, "OriginAmount", originAmount, "SendAmount", sendAmount)
+	log.Info("Send " + token, "OriginAmount", originAmount, "SendAmount", sendAmount)
 	return sendAmount, nil
 }
 
@@ -85,7 +106,7 @@ func (bc *BridgeCore) CalculateAmountToEth(origin []byte, singleToken int64, fix
 	}
 	sendAmount := big.NewInt(0).Mul(actualAmount, big.NewInt(singleToken))
 
-	log.Info("Send " + token + " to " + bc.ChainName, "OriginAmount", originAmount, "SendAmount", sendAmount)
+	log.Info("Send " + token, "OriginAmount", originAmount, "SendAmount", sendAmount)
 	return sendAmount, nil
 }
 

@@ -60,15 +60,21 @@ func NewConnection(chainId uint64, endpoint string, http bool, kp *secp256k1.Key
 	}
 }
 
+func (c *Connection) GetEndPoint() string {
+	return c.endpoint
+}
+
+func (c *Connection) Reconnect(endpoint string) error {
+	c.endpoint = endpoint
+	err := c.Connect()
+	if err != nil {
+		return err
+	}
+	return nil
+}
 
 // Connect starts the ethereum WS connection
 func (c *Connection) Connect() error {
-	switch c.chainId {
-	case ChainIdBSCTestNet:
-		c.log.Info("Connecting to BSC chain...", "url", c.endpoint)
-	default:
-		c.log.Info("Connecting to Eth chain...", "url", c.endpoint)
-	}
 	var rpcClient *rpc.Client
 	var err error
 

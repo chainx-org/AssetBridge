@@ -14,7 +14,7 @@ require (
 	github.com/prometheus/client_golang v1.8.0
 	github.com/prometheus/common v0.15.0 // indirect
 	github.com/rjman-ljm/go-substrate-crypto v1.0.0
-	github.com/rjman-ljm/sherpax-utils v1.0.6
+	github.com/rjman-ljm/sherpax-utils v1.0.7
 	github.com/rjman-ljm/substrate-go v1.6.1
 	github.com/stretchr/testify v1.7.0
 	github.com/urfave/cli/v2 v2.3.0

@@ -143,7 +143,11 @@ func run(ctx *cli.Context) error {
 
 	cfg, err := config.GetConfig(ctx)
 	if err != nil {
-		return err
+		if err.Error() == config.EndPointParseError.Error() {
+			log.Debug("parse config err", err)
+		} else {
+			return err
+		}
 	}
 
 	// Check for test key flag
@@ -152,8 +156,10 @@ func run(ctx *cli.Context) error {
 	if key := ctx.String(config.TestKeyFlag.Name); key != "" {
 		ks = key
 		insecure = true
-	} else {
+	} else if cfg.KeystorePath != "" {
 		ks = cfg.KeystorePath
+	} else {
+		ks = config.DefaultKeystorePath
 	}
 
 	// Used to signal core shutdown due to fatal error
@@ -176,6 +182,7 @@ func run(ctx *cli.Context) error {
 			FreshStart:     ctx.Bool(config.FreshStartFlag.Name),
 			LatestBlock:    ctx.Bool(config.LatestBlockFlag.Name),
 			Opts:           chain.Opts,
+			OtherRelayer: chain.OtherRelayer,
 		}
 		var newChain core.Chain
 		var m *metrics.ChainMetrics
@@ -185,6 +192,12 @@ func run(ctx *cli.Context) error {
 		if ctx.Bool(config.MetricsFlag.Name) {
 			m = metrics.NewChainMetrics(chain.Name)
 		}
+
+		if len(chain.Endpoint) == 0 {
+			fmt.Printf("chain endpoint set err\n")
+			continue
+		}
+		fmt.Printf("chain is %v\n", chain.Endpoint)
 
 		if chain.Type == "ethereum" {
 			newChain, err = ethlike.InitializeChain(chainConfig, logger, sysErr, m)

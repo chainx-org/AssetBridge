@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"github.com/centrifuge/go-substrate-rpc-client/v3/scale"
 	"github.com/centrifuge/go-substrate-rpc-client/v3/types"
+	"github.com/chainx-org/AssetBridge/chains/chainset"
 	utils "github.com/chainx-org/AssetBridge/shared/substrate"
 	"github.com/rjman-ljm/sherpax-utils/msg"
 	"math/big"
@@ -17,24 +18,24 @@ import (
 
 const (
 
-	FindNewMultiSigTx 						string = "Find a MultiSign New extrinsic"
-	FindApproveMultiSigTx 					string = "Find a MultiSign Approve extrinsic"
-	FindExecutedMultiSigTx 					string = "Find a MultiSign Executed extrinsic"
-	FindBatchMultiSigTx 					string = "Find a MultiSign Batch Extrinsic"
+	FindNewMultiSigTx 						string = "Find a multiSig New extrinsic"
+	FindApproveMultiSigTx 					string = "Find a multiSig Approve extrinsic"
+	FindExecutedMultiSigTx 					string = "Find a multiSig Executed extrinsic"
+	FindBatchMultiSigTx 					string = "Find a multiSig Batch Extrinsic"
 	FindFailedBatchMultiSigTx 				string = "But Batch Extrinsic Failed"
 
 	StartATx 								string = "Start a redeemTx..."
 	MeetARepeatTx 							string = "Meet a Repeat Transaction"
 	FindLostMultiSigTx 						string = "Find a Lost BatchTx"
-	TryToMakeNewMultiSigTx 					string = "Try to make a New MultiSign Tx!"
-	TryToApproveMultiSigTx 					string = "Try to Approve a MultiSignTx!"
+	TryToMakeNewMultiSigTx 					string = "Try to make a New multiSig Tx!"
+	TryToApproveMultiSigTx 					string = "Try to Approve a multiSigTx!"
 	FinishARedeemTx 						string = "Finish a redeemTx"
 	MultiSigExtrinsicExecuted 				string = "MultiSig extrinsic executed!"
 	BlockNotYetFinalized 					string = "Block not yet finalized"
 	SubListenerWorkFinished 				string = "Sub listener work is Finished"
 	FailedToProcessCurrentBlock 			string = "Failed to process current block"
 	FailedToWriteToBlockStore 				string = "Failed to write to blockStore"
-	RelayerFinishTheTx 						string = "Relayer Finish the Tx"
+	RelayerFinishTheTx 						string = "Relayer Finish the Redeem Tx"
 	LineLog           			 			string = "------------------------------------"
 
 	MaybeAProblem                         	string = "There may be a problem with the deal"
@@ -47,7 +48,7 @@ const (
 	NewCrossChainTransferCallError          string = "New Cross-Chain Transfer err"
 	NewMultiCallError                     	string = "New MultiCall err"
 	NewApiError                           	string = "New api error"
-	SignMultiSignTxFailed                 	string = "Sign MultiSignTx failed"
+	SignmultiSigTxFailed                 	string = "Sign multiSigTx failed"
 	SubmitExtrinsicFailed                 	string = "Submit Extrinsic Failed"
 	GetMetadataError                      	string = "Get Metadata Latest err"
 	GetBlockHashError                     	string = "Get BlockHash Latest err"
@@ -58,17 +59,17 @@ const (
 	ProcessBlockError                     	string = "ProcessBlock err, check it"
 )
 
-var UnKnownError = MultiSignTx{
+var UnKnownError = multiSigTx{
 	Block: -2,
 	TxId:  0,
 }
 
-var NotExecuted = MultiSignTx{
+var NotExecuted = multiSigTx{
 	Block: -1,
 	TxId:  0,
 }
 
-var YesVoted = MultiSignTx{
+var YesVoted = multiSigTx{
 	Block: -1,
 	TxId:  1,
 }
@@ -161,8 +162,14 @@ func (w *writer) createMultiSigTx(m msg.Message) {
 	/// If there is a duplicate transaction, wait for it to complete
 	w.checkRepeat(m)
 
-	if m.Destination != w.listener.chainId {
-		return
+	/// TODO: Sub To Sub
+	var err error
+	if m.Destination == chainset.IdSherpaXKSM || m.Destination == chainset.IdSherpaXDOT {
+		m, err = w.ConvertToEthMessage(m)
+		if err != nil {
+			w.log.Error("Convert to sub2sub message err")
+			return
+		}
 	}
 
 	w.log.Info(LineLog,"DepositNonce", m.DepositNonce, "From", m.Source, "To", m.Destination)
@@ -183,7 +190,7 @@ func (w *writer) createMultiSigTx(m msg.Message) {
 		defer func() {
 			cost := time.Since(start)
 			w.log.Info(LineLog, "DepositNonce", m.DepositNonce)
-			w.log.Info(RelayerFinishTheTx,"Relayer", w.relayer.currentRelayer, "DepositNonce", m.DepositNonce, "CostTime", cost)
+			w.log.Info(RelayerFinishTheTx,"Relayer", w.relayer.relayerId, "DepositNonce", m.DepositNonce, "CostTime", cost)
 			w.log.Info(LineLog, "DepositNonce", m.DepositNonce)
 		}()
 		retryTimes := RedeemRetryLimit
@@ -269,7 +276,11 @@ func (w *writer) createFungibleProposal(m msg.Message) (*proposal, error) {
 		return nil, fmt.Errorf("create fungible proposal error, neg amount")
 	}
 
-	recipient := w.bridgeCore.GetSubChainRecipient(m)
+	recipient, err := w.bridgeCore.GetSubChainRecipient(m)
+	if err != nil {
+		return nil, err
+	}
+
 	depositNonce := types.U64(m.DepositNonce)
 
 	err = w.conn.updateMetatdata()
@@ -312,11 +323,14 @@ func (w *writer) createFungibleProposal(m msg.Message) (*proposal, error) {
 
 func (w *writer) createNonFungibleProposal(m msg.Message) (*proposal, error) {
 	tokenId := types.NewU256(*big.NewInt(0).SetBytes(m.Payload[0].([]byte)))
-	recipient := w.bridgeCore.GetSubChainRecipient(m)
+	recipient, err := w.bridgeCore.GetSubChainRecipient(m)
+	if err != nil {
+		return nil, err
+	}
 	metadata := types.Bytes(m.Payload[2].([]byte))
 	depositNonce := types.U64(m.DepositNonce)
 
-	err := w.conn.updateMetatdata()
+	err = w.conn.updateMetatdata()
 	if err != nil {
 		return nil, err
 	}

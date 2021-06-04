@@ -20,7 +20,7 @@ func createTempConfigFile() (*os.File, *Config) {
 		Name:     "chain",
 		Type:     "ethereum",
 		Id:       "1",
-		Endpoint: "endpoint",
+		Endpoint: []string{"endpoint"},
 		From:     "0x0",
 		Opts:     map[string]string{"key": "value"},
 	}
@@ -76,7 +76,7 @@ func TestValdiateConfig(t *testing.T) {
 		Name:     "chain",
 		Type:     "ethereum",
 		Id:       "1",
-		Endpoint: "endpoint",
+		Endpoint: []string{"endpoint"},
 		From:     "0x0",
 		Opts:     nil,
 	}
@@ -85,7 +85,7 @@ func TestValdiateConfig(t *testing.T) {
 		Name:     "chain",
 		Type:     "",
 		Id:       "1",
-		Endpoint: "endpoint",
+		Endpoint: []string{"endpoint"},
 		From:     "0x0",
 		Opts:     nil,
 	}
@@ -94,7 +94,7 @@ func TestValdiateConfig(t *testing.T) {
 		Name:     "chain",
 		Type:     "ethereum",
 		Id:       "1",
-		Endpoint: "",
+		Endpoint: []string{""},
 		From:     "0x0",
 		Opts:     nil,
 	}
@@ -103,7 +103,7 @@ func TestValdiateConfig(t *testing.T) {
 		Name:     "",
 		Type:     "ethereum",
 		Id:       "1",
-		Endpoint: "endpoint",
+		Endpoint: []string{"endpoint"},
 		From:     "0x0",
 		Opts:     nil,
 	}

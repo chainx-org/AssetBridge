@@ -522,8 +522,13 @@ github.com/rjeczalik/notify v0.9.1 h1:CLCKso/QK1snAlnhNR/CNvNiFU2saUtjV0bx3EwNeC
 github.com/rjeczalik/notify v0.9.1/go.mod h1:rKwnCoCGeuQnwBtTSPL9Dad03Vh2n40ePRrjvIXnJho=
 github.com/rjman-ljm/go-substrate-crypto v1.0.0 h1:8nuZAfQT/erlu5C3xVkxUYmundffr856JPI9VTQbjN8=
 github.com/rjman-ljm/go-substrate-crypto v1.0.0/go.mod h1:zo4Jpv1nRbszHeoXaZmJD2XPseMH+RDzDcBpMmilRgc=
+<<<<<<< HEAD
 github.com/rjman-ljm/sherpax-utils v1.0.6 h1:nr2Nz8eVEe5aVQz+uWQxdg6W5YQqLSGfStBVjgLo9UU=
 github.com/rjman-ljm/sherpax-utils v1.0.6/go.mod h1:+vRU01N7rS4xenmpYIxhkEI/33qxckp6hgO0mDA1SiE=
+=======
+github.com/rjman-ljm/sherpax-utils v1.0.7 h1:fkzgHhwVvF3VdvtiXY0Ht1FRw9OtdDsdEN5yKN2nl+0=
+github.com/rjman-ljm/sherpax-utils v1.0.7/go.mod h1:+vRU01N7rS4xenmpYIxhkEI/33qxckp6hgO0mDA1SiE=
+>>>>>>> backup
 github.com/rjman-ljm/substrate-go v1.6.1 h1:2pKvUGvt0UFO28kbdlosIzEsMwvCDYs2lnmBaMXKWwM=
 github.com/rjman-ljm/substrate-go v1.6.1/go.mod h1:FmdJ1p8TJhC/ie4r3rWNfYIolxNy7wRUOrEKe+BBmxw=
 github.com/rogpeppe/fastuuid v0.0.0-20150106093220-6724a57986af/go.mod h1:XWv6SoW27p1b0cqNHllgS5HIMJraePCO15w5zCzIWYg=

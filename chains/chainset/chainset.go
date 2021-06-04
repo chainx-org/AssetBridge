@@ -58,6 +58,9 @@ const(
 	TokenXETH	string = "XETH"
 	TokenXUSD	string = "XUSD"
 	TokenXHT	string = "XHT"
+	TokenXDOT	string = "XDOT"
+	TokenXKSM	string = "XKSM"
+
 	TokenXAsset string = "XASSET"
 )
 

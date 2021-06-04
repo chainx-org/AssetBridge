@@ -27,6 +27,7 @@ import (
 	erc20Handler "github.com/chainx-org/AssetBridge/bindings/ERC20Handler"
 	"github.com/chainx-org/AssetBridge/bindings/WETH10"
 	"github.com/chainx-org/AssetBridge/chains/chainset"
+	"github.com/chainx-org/AssetBridge/config"
 	connection "github.com/chainx-org/AssetBridge/connections/ethlike"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
@@ -46,7 +47,9 @@ var _ core.Chain = &Chain{}
 var _ Connection = &connection.Connection{}
 
 type Connection interface {
+	GetEndPoint() string
 	Connect() error
+	Reconnect(endpoint string) error
 	Keypair() *secp256k1.Keypair
 	Opts() *bind.TransactOpts
 	CallOpts() *bind.CallOpts
@@ -105,7 +108,7 @@ func InitializeChain(chainCfg *core.ChainConfig, logger log15.Logger, sysErr cha
 	}
 
 	stop := make(chan int)
-	conn := connection.NewConnection(networkId, cfg.endpoint, cfg.http, kp, logger, cfg.gasLimit, cfg.maxGasPrice, cfg.gasMultiplier)
+	conn := connection.NewConnection(networkId, cfg.endpoint[config.InitialEndPointId], cfg.http, kp, logger, cfg.gasLimit, cfg.maxGasPrice, cfg.gasMultiplier)
 	err = conn.Connect()
 	if err != nil {
 		return nil, err

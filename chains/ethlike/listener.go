@@ -27,7 +27,7 @@ import (
 )
 
 var BlockRetryInterval = time.Second * 5
-var BlockRetryLimit = 30
+var BlockRetryLimit = 15
 
 //var ErrFatalPolling = errors.New("listener block polling failed")
 
@@ -92,12 +92,34 @@ func (l *listener) connect() {
 		l.reconnect()
 	}
 }
+func (l *listener) getAnotherEndPoint() string {
+	curEndPoint := l.conn.GetEndPoint()
+	limit := len(l.cfg.endpoint)-1
+	if limit < 0 {
+		l.log.Error("cfg `EndPoint set Error`, can't switch endpoint")
+	}
+
+	for i, url := range l.cfg.endpoint {
+		if url == curEndPoint && i < limit {
+			return l.cfg.endpoint[i+1]
+		}
+	}
+	return l.cfg.endpoint[0]
+}
 
 func (l *listener) reconnect() {
-	ClientRetryLimit := BlockRetryLimit*BlockRetryLimit
+	ClientRetryLimit := BlockRetryLimit
 	for {
+		l.log.Info("Reconnect to current endpoint", "EndPoint", l.conn.GetEndPoint(), "Time", ClientRetryLimit)
 		if ClientRetryLimit == 0 {
-			l.log.Error("Retry...", "chain", l.cfg.name)
+			curEndPoint := l.getAnotherEndPoint()
+			l.log.Info("Connecting to another endpoint", "EndPoint", curEndPoint)
+
+			err := l.conn.Reconnect(curEndPoint)
+			if err != nil {
+				l.log.Error("Reconnect Error", "EndPoint", curEndPoint)
+			}
+
 			ClientRetryLimit = BlockRetryLimit
 		}
 
@@ -134,7 +156,7 @@ func (l *listener) pollBlocks() error {
 			// No more retries, goto next block
 			if retry == 0 {
 				l.log.Error("Polling failed, retries exceeded")
-				return nil
+				return errors.New("polling failed, retries exceeded")
 			}
 
 			latestBlock, err := l.conn.LatestBlock()
@@ -220,7 +242,7 @@ func (l *listener) getDepositEventsForBlock(latestBlock *big.Int) error {
 
 		if addr == l.cfg.erc20HandlerContract && chainset.IsMultiSigTransfer(destId) {
 			m, err = l.handleMultiSigDepositedEvent(destId, nonce)
-		} else if addr == l.cfg.erc20HandlerContract && !chainset.IsMultiSigTransfer(destId) {
+		} else if addr == l.cfg.erc20HandlerContract && chainset.IsFungibleTransfer(destId) {
 			m, err = l.handleErc20DepositedEvent(destId, nonce)
 		} else if addr == l.cfg.erc721HandlerContract {
 			m, err = l.handleErc721DepositedEvent(destId, nonce)

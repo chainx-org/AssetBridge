@@ -2,9 +2,8 @@ package substrate
 
 import (
 	"fmt"
-	"github.com/rjman-ljm/go-substrate-crypto/ss58"
 	"github.com/centrifuge/go-substrate-rpc-client/v3/types"
-	"github.com/ethereum/go-ethereum/common"
+	"github.com/rjman-ljm/go-substrate-crypto/ss58"
 	"github.com/rjman-ljm/sherpax-utils/msg"
 	"github.com/rjman-ljm/substrate-go/expand"
 	"github.com/rjman-ljm/substrate-go/expand/base"
@@ -15,17 +14,17 @@ import (
 
 const HexPrefix = "hex"
 
-type MultiSignTxId uint64
+type multiSigTxId uint64
 type BlockNumber int64
 type OtherSignatories []string
 
-type MultiSignTx struct {
+type multiSigTx struct {
 	Block BlockNumber
-	TxId  MultiSignTxId
+	TxId  multiSigTxId
 }
 
 type MultiSigAsMulti struct {
-	OriginMsTx     		MultiSignTx
+	OriginMsTx     		multiSigTx
 	Executed       		bool
 	Threshold      		uint16
 	Others         		[]OtherSignatories
@@ -46,7 +45,7 @@ func (l *listener) dealBlockTx(resp *models.BlockResponse, currentBlock int64) {
 
 		// Current Extrinsic { Block, Index }
 		l.curTx.Block = BlockNumber(currentBlock)
-		l.curTx.TxId = MultiSignTxId(e.ExtrinsicIndex)
+		l.curTx.TxId = multiSigTxId(e.ExtrinsicIndex)
 		msTx := MultiSigAsMulti{
 			DestAddress: e.MultiSigAsMulti.DestAddress,
 			DestAmount:  e.MultiSigAsMulti.DestAmount,
@@ -55,26 +54,26 @@ func (l *listener) dealBlockTx(resp *models.BlockResponse, currentBlock int64) {
 		toAddressValid := l.checkToAddress(e)
 
 		if e.Type == base.AsMultiNew && fromAddressValid {
-			//l.logInfo(FindNewMultiSigTx, currentBlock)
-			/// Make a new MultiSignTransfer record
+			l.logInfo(FindNewMultiSigTx, currentBlock)
+			/// Make a new multiSigTransfer record
 			l.makeNewMultiSigRecord(e)
 		}
 
 		if e.Type == base.AsMultiApprove && fromAddressValid {
-			//l.logInfo(FindApproveMultiSigTx, currentBlock)
+			l.logInfo(FindApproveMultiSigTx, currentBlock)
 			/// Vote(Approve) for the existed MultiSigTransfer record
 			l.voteMultiSigRecord(msTx, e)
 		}
 
 		if e.Type == base.AsMultiExecuted && fromAddressValid {
-			//l.logInfo(FindExecutedMultiSigTx, currentBlock)
+			l.logInfo(FindExecutedMultiSigTx, currentBlock)
 			/// Vote and execute the existed MultiSigTransfer record
 			l.voteMultiSigRecord(msTx, e)
 			l.executeMultiSigRecord(msTx)
 		}
 
 		if e.Type == base.UtilityBatch && toAddressValid {
-			//l.logInfo(FindBatchMultiSigTx, currentBlock)
+			l.logInfo(FindBatchMultiSigTx, currentBlock)
 			if l.findLostTxByAddress(currentBlock, e) {
 				continue
 			}
@@ -85,36 +84,65 @@ func (l *listener) dealBlockTx(resp *models.BlockResponse, currentBlock int64) {
 				continue
 			}
 
-			var recipient []byte
-			if e.Recipient[:3] == HexPrefix {
-				recipientAccount := types.NewAccountID(common.FromHex(e.Recipient[3:]))
-				recipient = recipientAccount[:]
-			} else {
-				recipient = []byte(e.Recipient)
-			}
-
-			depositNonce, _ := strconv.ParseInt(strconv.FormatInt(currentBlock, 10)+strconv.FormatInt(int64(e.ExtrinsicIndex), 10), 10, 64)
-
-			rId ,err := l.bridgeCore.AssetIdToResourceId(l.conn.api, &l.conn.meta, e.AssetId)
+			destId, recipient, err := l.parseRemark(e.Recipient)
 			if err != nil {
-				fmt.Println("parse AssetId err")
+				l.log.Error("parse remark error", "err", err)
 				continue
 			}
+			fmt.Printf("parse result, dest is %v, recipient is %v\n", destId, recipient)
 
-			fmt.Printf("ResourceId from %v is %v\n", rId, msg.ResourceIdFromSlice(rId))
+			depositNonce, _ := strconv.ParseInt(strconv.FormatInt(currentBlock, 10) + strconv.FormatInt(int64(e.ExtrinsicIndex), 10), 10, 64)
 
 			m := msg.NewMultiSigTransfer(
 				l.chainId,
-				l.destId,
+				destId,
 				msg.Nonce(depositNonce),
 				sendAmount,
 				l.resourceId,
 				recipient[:],
 			)
 			l.logReadyToSend(sendAmount, recipient, e)
-			l.submitMessage(m, nil)
+			l.submitMessage(ParseExtrinsic, m, nil)
 		}
 	}
+}
+
+func (l *listener) parseRemark(res string) (msg.ChainId, []byte, error) {
+	offset := -1
+	for i, v := range res {
+		if v == ',' {
+			offset = i
+		}
+	}
+	if offset < 0 {
+		return msg.ChainId(0), nil, fmt.Errorf("remark value err, didn't parse out destId and recipient")
+	}
+
+	dest := res[:offset]
+	address := res[offset+1:]
+	fmt.Printf("dest is %v\naddresss is %v\n", dest, address)
+
+	destId, err := strconv.ParseInt(dest, 10, 64)
+	if err != nil {
+		fmt.Printf("parse remark_destId err, value is %v\n", destId)
+		return msg.ChainId(0), nil, fmt.Errorf("remark value err, didn't parse out destId and recipient")
+	}
+
+	var recipient []byte
+	if address[:2] != "0x" {
+		recipient, err = ss58.DecodeToPub(address)
+		if err != nil {
+			return msg.ChainId(0), nil, fmt.Errorf("convert to publicKey failed")
+		}
+	} else {
+		recipient = []byte(address)
+	}
+	//if address[:3] == HexPrefix {
+	//	recipientAccount := types.NewAccountID(common.FromHex(address[3:]))
+	//	recipient = recipientAccount[:]
+	//}
+
+	return msg.ChainId(destId), recipient, nil
 }
 
 func (l *listener) findLostTxByAddress(currentBlock int64, e *models.ExtrinsicResponse) bool {
@@ -142,6 +170,7 @@ func (l *listener) getSendAmount(e *models.ExtrinsicResponse) (*big.Int, bool) {
 
 	sendAmount, err := l.bridgeCore.GetAmountToEth(amount.Bytes(), e.AssetId)
 	if err != nil {
+		fmt.Printf("Get token amount err, err is %v\n", err)
 		return nil, false
 	}
 

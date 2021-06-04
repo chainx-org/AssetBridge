@@ -50,15 +50,17 @@ type Currency struct {
 }
 
 var currencies = []Currency{
-	{OriginAsset, 	ResourceIdOrigin, TokenKSM, 	DiffKSM, 		FixedKSMFee, ExtraFeeRate},
-	{OriginAsset, 	ResourceIdOrigin, TokenDOT, 	DiffDOT, 		FixedDOTFee, ExtraFeeRate},
-	{OriginAsset, 	ResourceIdOrigin, TokenPCX, 	DiffPCX, 		FixedPCXFee, ExtraFeeRate},
-	{AssetXBTC, 		ResourceIdXBTC, TokenXBTC	, 	DiffXBTC, 	    0,			 ExtraNoneFeeRate},
-	{AssetXBNB, 		ResourceIdXBNB, TokenXBNB, 	DiffXAsset, 	0,			 ExtraNoneFeeRate},
-	{AssetXETH, 		ResourceIdXETH ,TokenXETH, 	DiffXAsset, 	0,			 ExtraNoneFeeRate},
-	{AssetXUSD, 	 	ResourceIdXUSD	,TokenXUSD, 	DiffXAsset, 	0,			 ExtraNoneFeeRate},
-	{AssetXHT, 		ResourceIdXHT, TokenXHT, 	DiffXAsset, 	0,			 ExtraNoneFeeRate},
-	{XAssetId, 		ResourceIdXAsset ,TokenXAsset, 	DiffXAsset, 	0,			 ExtraNoneFeeRate},
+	{OriginAsset, 	ResourceIdOrigin,TokenKSM, 	DiffKSM, 		FixedKSMFee, ExtraFeeRate},
+	{OriginAsset, 	ResourceIdOrigin,TokenDOT, 	DiffDOT, 		FixedDOTFee, ExtraFeeRate},
+	{OriginAsset, 	ResourceIdOrigin,TokenPCX, 	DiffPCX, 		FixedPCXFee, ExtraFeeRate},
+	{AssetXBTC, 		ResourceIdXBTC,  TokenXBTC, 	DiffXBTC, 	    0,			 ExtraNoneFeeRate},
+	{AssetXBNB, 		ResourceIdXBNB,  TokenXBNB, 	DiffXAsset, 	0,			 ExtraNoneFeeRate},
+	{AssetXETH, 		ResourceIdXETH,  TokenXETH, 	DiffXAsset, 	0,			 ExtraNoneFeeRate},
+	{AssetXHT, 		ResourceIdXHT,   TokenXHT, 	DiffXAsset, 	0,			 ExtraNoneFeeRate},
+	{AssetXUSD, 	 	ResourceIdXUSD,  TokenXUSD, 	DiffXAsset, 	0,			 ExtraNoneFeeRate},
+	{AssetXDOT, 		ResourceIdXDOT,  TokenXDOT, 	DiffXAsset, 	0,			 ExtraNoneFeeRate},
+	{AssetXKSM, 		ResourceIdXKSM,  TokenXKSM, 	DiffXAsset, 	0,			 ExtraNoneFeeRate},
+	{XAssetId, 		ResourceIdXAsset,TokenXAsset,DiffXAsset, 	0,			 ExtraNoneFeeRate},
 }
 
 /// AssetId Type
@@ -69,6 +71,8 @@ const (
 	AssetXETH			xevents.AssetId = 3
 	AssetXHT			xevents.AssetId = 4
 	AssetXUSD			xevents.AssetId = 5
+	AssetXDOT			xevents.AssetId = 6
+	AssetXKSM			xevents.AssetId = 7
 	XAssetId			xevents.AssetId = 999
 )
 
@@ -80,6 +84,8 @@ const (
 	ResourceIdXETH				string = ResourceIdPrefix + "003"
 	ResourceIdXHT				string = ResourceIdPrefix + "004"
 	ResourceIdXUSD				string = ResourceIdPrefix + "005"
+	ResourceIdXDOT				string = ResourceIdPrefix + "006"
+	ResourceIdXKSM				string = ResourceIdPrefix + "007"
 	ResourceIdXAsset			string = ResourceIdPrefix + "999"
 )
 

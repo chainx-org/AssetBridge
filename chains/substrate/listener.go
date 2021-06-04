@@ -7,7 +7,6 @@ import (
 	"errors"
 	"fmt"
 	"github.com/chainx-org/AssetBridge/chains/chainset"
-	"github.com/rjman-ljm/substrate-go/client"
 	"github.com/rjman-ljm/substrate-go/expand/chainx"
 	"github.com/rjman-ljm/substrate-go/models"
 
@@ -37,10 +36,9 @@ type listener struct {
 	sysErr        chan<- error
 	latestBlock   metrics.LatestBlock
 	metrics       *metrics.ChainMetrics
-	client        *client.Client
 	multiSigAddr  types.AccountID
-	curTx         MultiSignTx
-	asMulti       map[MultiSignTx]MultiSigAsMulti
+	curTx         multiSigTx
+	asMulti       map[multiSigTx]MultiSigAsMulti
 	resourceId    msg.ResourceId
 	destId        msg.ChainId
 	relayer       Relayer
@@ -56,9 +54,15 @@ var BlockRetryInterval = time.Second * 5
 var BlockRetryLimit = 15
 var RedeemRetryLimit = 15
 
-func NewListener(conn *Connection, name string, id msg.ChainId, startBlock uint64, endBlock uint64, lostAddress string, log log15.Logger, bs blockstore.Blockstorer,
-	stop <-chan int, sysErr chan<- error, m *metrics.ChainMetrics, multiSignAddress types.AccountID, cli *client.Client,
-	resource msg.ResourceId, dest msg.ChainId, relayer Relayer, bc *chainset.BridgeCore) *listener {
+type SourceType int
+const(
+	ParseExtrinsic = iota
+	ParseEvent
+)
+
+func NewListener(conn *Connection, name string, id msg.ChainId, startBlock uint64, endBlock uint64, lostAddress string,
+	log log15.Logger, bs blockstore.Blockstorer, stop <-chan int, sysErr chan<- error, m *metrics.ChainMetrics,
+	multiSigAddress types.AccountID, resource msg.ResourceId, dest msg.ChainId, relayer Relayer, bc *chainset.BridgeCore) *listener {
 	return &listener{
 		name:          	name,
 		chainId:       	id,
@@ -73,9 +77,8 @@ func NewListener(conn *Connection, name string, id msg.ChainId, startBlock uint6
 		sysErr:        sysErr,
 		latestBlock:   metrics.LatestBlock{LastUpdated: time.Now()},
 		metrics:       m,
-		client:        cli,
-		multiSigAddr:  multiSignAddress,
-		asMulti:       make(map[MultiSignTx]MultiSigAsMulti, InitCapacity),
+		multiSigAddr:  multiSigAddress,
+		asMulti:       make(map[multiSigTx]MultiSigAsMulti, InitCapacity),
 		resourceId:    resource,
 		destId:        dest,
 		relayer:       relayer,
@@ -90,7 +93,7 @@ func (l *listener) setRouter(r chains.Router) {
 // start creates the initial subscription for all events
 func (l *listener) start() error {
 	// Check whether latest is less than starting block
-	header, err := l.client.Api.RPC.Chain.GetHeaderLatest()
+	header, err := l.conn.cli.Api.RPC.Chain.GetHeaderLatest()
 	if err != nil {
 		return err
 	}
@@ -131,20 +134,19 @@ func (l *listener) connect() {
 }
 
 func (l *listener) reconnect() {
-	ClientRetryLimit := BlockRetryLimit*BlockRetryLimit
+	ClientRetryLimit := BlockRetryLimit
 	for {
 		if ClientRetryLimit == 0 {
-			l.log.Error("Retry...", "chain", l.name)
-			cli, err := client.New(l.conn.url)
-			if err == nil {
-				bc := chainset.NewBridgeCore(l.name)
-				bc.InitializeClientPrefix(cli)
-				l.client = cli
+			err := l.conn.Reconnect()
+			l.log.Info("Connecting to another endpoint", "EndPoint", l.conn.url)
+			if err != nil {
+				l.log.Error("Reconnect Error", "EndPoint", l.conn.url)
 			}
 			ClientRetryLimit = BlockRetryLimit
 		}
+
 		// Check whether latest is less than starting block
-		header, err := l.client.Api.RPC.Chain.GetHeaderLatest()
+		header, err := l.conn.cli.Api.RPC.Chain.GetHeaderLatest()
 		if err != nil {
 			time.Sleep(BlockRetryInterval)
 			ClientRetryLimit--
@@ -152,7 +154,7 @@ func (l *listener) reconnect() {
 		}
 		l.startBlock = uint64(header.Number)
 
-		_, err = l.client.Api.RPC.Chain.GetFinalizedHead()
+		_, err = l.conn.cli.Api.RPC.Chain.GetFinalizedHead()
 		if err != nil {
 			time.Sleep(BlockRetryInterval)
 			continue
@@ -191,11 +193,11 @@ func (l *listener) pollBlocks() error {
 		default:
 			// No more retries, goto next block
 			if retry == 0 {
-				return fmt.Errorf("event polling retries exceeded (chain=%d, name=%s)", l.chainId, l.name)
+				return fmt.Errorf("polling retries exceeded (chain=%d, name=%s)", l.chainId, l.name)
 			}
 
 			/// Get finalized block hash
-			finalizedHash, err := l.client.Api.RPC.Chain.GetFinalizedHead()
+			finalizedHash, err := l.conn.cli.Api.RPC.Chain.GetFinalizedHead()
 			if err != nil {
 				l.log.Error("Failed to fetch finalized hash", "err", err)
 				retry--
@@ -204,7 +206,7 @@ func (l *listener) pollBlocks() error {
 			}
 
 			// Get finalized block header
-			finalizedHeader, err := l.client.Api.RPC.Chain.GetHeader(finalizedHash)
+			finalizedHeader, err := l.conn.cli.Api.RPC.Chain.GetHeader(finalizedHash)
 			if err != nil {
 				l.log.Error("Failed to fetch finalized header", "err", err)
 				retry--
@@ -281,7 +283,7 @@ func (l *listener) processBlockExtrinsic(currentBlock int64) {
 			break
 		}
 
-		resp, err := l.client.GetBlockByNumber(currentBlock)
+		resp, err := l.conn.cli.GetBlockByNumber(currentBlock)
 		if err != nil {
 			if retryTimes == BlockRetryLimit / 2 {
 				l.logErr(GetBlockByNumberError, err)
@@ -333,19 +335,22 @@ func (l *listener) handleEvents(evts chainx.ChainXEventRecords) {
 	if l.subscriptions[FungibleTransfer] != nil {
 		for _, evt := range evts.ChainBridge_FungibleTransfer {
 			l.log.Trace("Handling FungibleTransfer event")
-			l.submitMessage(l.subscriptions[FungibleTransfer](evt, l.log))
+			m, err := l.subscriptions[FungibleTransfer](evt, l.log)
+			l.submitMessage(ParseEvent, m, err)
 		}
 	}
 	if l.subscriptions[NonFungibleTransfer] != nil {
 		for _, evt := range evts.ChainBridge_NonFungibleTransfer {
 			l.log.Trace("Handling NonFungibleTransfer event")
-			l.submitMessage(l.subscriptions[NonFungibleTransfer](evt, l.log))
+			m, err := l.subscriptions[NonFungibleTransfer](evt, l.log)
+			l.submitMessage(ParseEvent, m, err)
 		}
 	}
 	if l.subscriptions[GenericTransfer] != nil {
 		for _, evt := range evts.ChainBridge_GenericTransfer {
 			l.log.Trace("Handling GenericTransfer event")
-			l.submitMessage(l.subscriptions[GenericTransfer](evt, l.log))
+			m, err := l.subscriptions[GenericTransfer](evt, l.log)
+			l.submitMessage(ParseEvent, m, err)
 		}
 	}
 
@@ -359,14 +364,21 @@ func (l *listener) handleEvents(evts chainx.ChainXEventRecords) {
 }
 
 // submitMessage inserts the chainId into the msg and sends it to the router
-func (l *listener) submitMessage(m msg.Message, err error) {
+func (l *listener) submitMessage(source SourceType, m msg.Message, err error) {
 	if err != nil {
 		log15.Error("Critical error processing event", "err", err)
 		return
 	}
 
-	/// check Erc20TokenTransfer Type
-	m.Type = l.checkMessageType(m)
+	switch source {
+	case ParseExtrinsic:
+		m.Type = l.checkExtrinsicMessageType(m)
+	case ParseEvent:
+		m.Type = l.checkEventMessageType(m)
+	default:
+		/// Do nothing
+		l.log.Error("Message from unknown sources")
+	}
 
 	m.Source = l.chainId
 	err = l.router.Send(m)
@@ -375,10 +387,24 @@ func (l *listener) submitMessage(m msg.Message, err error) {
 	}
 }
 
-func (l *listener) checkMessageType(m msg.Message) msg.TransferType {
+func (l *listener) checkExtrinsicMessageType(m msg.Message) msg.TransferType {
+	rIdXDOT := l.bridgeCore.ConvertStringToResourceId(chainset.ResourceIdXDOT)
+	rIdXKSM := l.bridgeCore.ConvertStringToResourceId(chainset.ResourceIdXKSM)
+	if m.ResourceId == rIdXDOT || m.ResourceId == rIdXKSM {
+		return msg.FungibleTransfer
+	} else {
+		return msg.MultiSigTransfer
+	}
+}
+
+func (l *listener) checkEventMessageType(m msg.Message) msg.TransferType {
 	rIdXUSD := l.bridgeCore.ConvertStringToResourceId(chainset.ResourceIdXUSD)
+	rIdXDOT := l.bridgeCore.ConvertStringToResourceId(chainset.ResourceIdXDOT)
+	rIdXKSM := l.bridgeCore.ConvertStringToResourceId(chainset.ResourceIdXKSM)
 	if m.ResourceId == rIdXUSD {
 		return msg.FungibleTransfer
+	} else if m.ResourceId == rIdXDOT || m.ResourceId == rIdXKSM {
+		return msg.MultiSigTransfer
 	} else {
 		return msg.NativeTransfer
 	}

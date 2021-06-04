@@ -5,6 +5,7 @@ package config
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -18,6 +19,9 @@ import (
 const DefaultConfigPath = "./config.json"
 const DefaultKeystorePath = "./keystore"
 const DefaultBlockTimeout = int64(180) // 3 minutes
+const InitialEndPointId = 0
+
+var EndPointParseError = errors.New("json: cannot unmarshal string into Go struct field RawChainConfig.chains.endpoint of type []string")
 
 type Config struct {
 	Chains       []RawChainConfig `json:"chains"`
@@ -29,9 +33,10 @@ type RawChainConfig struct {
 	Name     string            `json:"name"`
 	Type     string            `json:"type"`
 	Id       string            `json:"id"`       // ChainID
-	Endpoint string            `json:"endpoint"` // url for rpc endpoint
+	Endpoint []string            `json:"endpoint"` // url for rpc endpoint
 	From     string            `json:"from"`     // address of key to use
 	Opts     map[string]string `json:"opts"`
+	OtherRelayer []string      `json:"otherRelayer"`
 }
 
 func NewConfig() *Config {
@@ -72,7 +77,9 @@ func (c *Config) validate() error {
 		if chain.Type == "" {
 			return fmt.Errorf("required field chain.Type empty for chain %s", chain.Id)
 		}
-		if chain.Endpoint == "" {
+		if len(chain.Endpoint) == 0 {
+			return fmt.Errorf("required field chain.Endpoint empty for chain %s", chain.Id)
+		} else if chain.Endpoint[0] == "" {
 			return fmt.Errorf("required field chain.Endpoint empty for chain %s", chain.Id)
 		}
 		if chain.Name == "" {

@@ -5,22 +5,28 @@ package substrate
 
 import (
 	"fmt"
+	"github.com/chainx-org/AssetBridge/chains/chainset"
+	"github.com/ethereum/go-ethereum/log"
+	"github.com/rjman-ljm/substrate-go/client"
 	"sync"
+	"time"
 
 	"github.com/ChainSafe/log15"
-	"github.com/rjman-ljm/sherpax-utils/msg"
 	gsrpc "github.com/centrifuge/go-substrate-rpc-client/v3"
+	"github.com/rjman-ljm/sherpax-utils/msg"
 
-	utils "github.com/chainx-org/AssetBridge/shared/substrate"
 	"github.com/centrifuge/go-substrate-rpc-client/v3/rpc/author"
 	"github.com/centrifuge/go-substrate-rpc-client/v3/signature"
 	"github.com/centrifuge/go-substrate-rpc-client/v3/types"
+	utils "github.com/chainx-org/AssetBridge/shared/substrate"
 )
 
 type Connection struct {
+	cli 		*client.Client
 	api         *gsrpc.SubstrateAPI
 	log         log15.Logger
 	url         string                 // API endpoint
+	endpoint    []string // Backup endpoint
 	name        string                 // Chain name
 	meta        types.Metadata         // Latest chain metadata
 	metaLock    sync.RWMutex           // Lock metadata for updates, allows concurrent reads
@@ -33,8 +39,8 @@ type Connection struct {
 	prefix      []byte                 // the prefix of token
 }
 
-func NewConnection(url string, name string, key *signature.KeyringPair, log log15.Logger, stop <-chan int, sysErr chan<- error) *Connection {
-	return &Connection{url: url, name: name, key: key, log: log, stop: stop, sysErr: sysErr}
+func NewConnection(url string, endpoint []string, name string, key *signature.KeyringPair, log log15.Logger, stop <-chan int, sysErr chan<- error) *Connection {
+	return &Connection{url: url, endpoint: endpoint, name: name, key: key, log: log, stop: stop, sysErr: sysErr}
 }
 
 func (c *Connection) getMetadata() (meta types.Metadata) {
@@ -56,13 +62,48 @@ func (c *Connection) updateMetatdata() error {
 	return nil
 }
 
+func (c *Connection) getAnotherEndPoint() string {
+	curEndPoint := c.url
+	limit := len(c.endpoint) - 1
+	if limit < 0 {
+		log.Error("cfg `EndPoint set Error`, can't switch endpoint")
+	}
+
+	for i, url := range c.endpoint {
+		if url == curEndPoint && i < limit {
+			return c.endpoint[i+1]
+		}
+	}
+
+	return c.endpoint[0]
+}
+
+func (c *Connection) Reconnect() error {
+	c.url = c.getAnotherEndPoint()
+	err := c.Connect()
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
 func (c *Connection) Connect() error {
 	c.log.Info("Connecting to substrate chain...", "url", c.url)
+	/// Initialize api to resolve events
 	api, err := gsrpc.NewSubstrateAPI(c.url)
 	if err != nil {
 		return err
 	}
 	c.api = api
+
+	/// Initialize api to resolve extrinsic
+	cli, err := client.New(c.url)
+	if err != nil {
+		return err
+	}
+	c.cli = cli
+	bc := chainset.NewBridgeCore(c.name)
+	bc.InitializeClientPrefix(cli)
 
 	// Fetch metadata
 	meta, err := api.RPC.State.GetMetadataLatest()
@@ -85,7 +126,7 @@ func (c *Connection) Connect() error {
 // SubmitTx constructs and submits an extrinsic to call the method with the given arguments.
 // All args are passed directly into GSRPC. GSRPC types are recommended to avoid serialization inconsistencies.
 func (c *Connection) SubmitTx(method utils.Method, args ...interface{}) error {
-	c.log.Debug("Submitting substrate call...", "method", method, "sender", c.key.Address)
+	c.log.Info("Resolve substrate call...", "method", method)
 
 	meta := c.getMetadata()
 
@@ -132,6 +173,7 @@ func (c *Connection) SubmitTx(method utils.Method, args ...interface{}) error {
 		c.nonceLock.Unlock()
 		return err
 	}
+	c.log.Info("Sign the transaction...")
 
 	// Submit and watch the extrinsic
 	sub, err := c.api.RPC.Author.SubmitAndWatchExtrinsic(ext)
@@ -140,7 +182,7 @@ func (c *Connection) SubmitTx(method utils.Method, args ...interface{}) error {
 	if err != nil {
 		return fmt.Errorf("submission of extrinsic failed: %w", err)
 	}
-	c.log.Trace("Extrinsic submission succeeded")
+	c.log.Info("Extrinsic submission succeeded")
 	defer sub.Unsubscribe()
 
 	return c.watchSubmission(sub)
@@ -154,7 +196,7 @@ func (c *Connection) watchSubmission(sub *author.ExtrinsicStatusSubscription) er
 		case status := <-sub.Chan():
 			switch {
 			case status.IsInBlock:
-				c.log.Trace("Extrinsic included in block", "block", status.AsInBlock.Hex())
+				c.log.Info("Extrinsic included in block", "block", status.AsInBlock.Hex())
 				return nil
 			case status.IsRetracted:
 				return fmt.Errorf("extrinsic retracted: %s", status.AsRetracted.Hex())
@@ -164,8 +206,11 @@ func (c *Connection) watchSubmission(sub *author.ExtrinsicStatusSubscription) er
 				return fmt.Errorf("extrinsic invalid")
 			}
 		case err := <-sub.Err():
-			c.log.Trace("Extrinsic subscription error", "err", err)
+			c.log.Error("Extrinsic subscription error", "err", err)
 			return err
+		case <-time.After(60 * time.Second):
+			c.log.Error("Submit extrinsic error, timeout")
+			return fmt.Errorf("submit extrinsic timeout")
 		}
 	}
 }

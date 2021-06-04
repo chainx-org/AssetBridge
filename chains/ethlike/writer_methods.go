@@ -93,7 +93,7 @@ func (w *writer) shouldVote(m msg.Message, dataHash [32]byte) bool {
 // createErc20Proposal creates an Erc20 proposal.
 // Returns true if the proposal is successfully created or is complete
 func (w *writer) createMultiSigProposal(m msg.Message) bool {
-	w.log.Info("Creating Native Erc20 proposal", "src", m.Source, "nonce", m.DepositNonce)
+	w.log.Info("Creating MultiSig Erc20 proposal", "src", m.Source, "nonce", m.DepositNonce)
 
 	data := ConstructErc20ProposalData(m.Payload[0].([]byte), m.Payload[1].([]byte))
 	dataHash := utils.Hash(append(w.cfg.erc20HandlerContract.Bytes(), data...))
@@ -437,7 +437,7 @@ func (w *writer) executeProposal(m msg.Message, data []byte, dataHash [32]byte) 
 				w.log.Info(substrate.LineLog, "src", m.Source, "dst", m.Destination, "nonce", m.DepositNonce)
 
 				/// WithdrawTo account
-				if m.Type == msg.FungibleTransfer && w.cfg.internalAccount == w.kp.CommonAddress() {
+				if m.Type == msg.NativeTransfer && w.cfg.internalAccount == w.kp.CommonAddress() {
 					w.withdrawToRecipient(m)
 				}
 				return

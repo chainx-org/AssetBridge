@@ -6,20 +6,20 @@ import (
 )
 
 type Relayer struct {
-	kr                 signature.KeyringPair
-	otherSignatories   []types.AccountID
-	totalRelayers      uint64
-	multiSignThreshold uint16
-	currentRelayer     uint64
+	kr                signature.KeyringPair
+	otherSignatories  []types.AccountID
+	totalRelayers     uint64
+	multiSigThreshold uint16
+	relayerId         uint64
 }
 
 func NewRelayer(kr signature.KeyringPair, otherSignatories []types.AccountID, totalRelayers uint64,
-	multiSignThreshold uint16, currentRelayer uint64) Relayer {
+	multiSigThreshold uint16, currentRelayer uint64) Relayer {
 	return Relayer{
-		kr:                 kr,
-		otherSignatories:   otherSignatories,
-		totalRelayers:      totalRelayers,
-		multiSignThreshold: multiSignThreshold,
-		currentRelayer:     currentRelayer,
+		kr:                kr,
+		otherSignatories:  otherSignatories,
+		totalRelayers:     totalRelayers,
+		multiSigThreshold: multiSigThreshold,
+		relayerId:         currentRelayer,
 	}
 }

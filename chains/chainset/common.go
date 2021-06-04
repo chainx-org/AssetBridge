@@ -22,6 +22,9 @@ const (
 	IdChainXPCXV2 			msg.ChainId = 12
 	IdChainXBTCV1 			msg.ChainId = 13
 	IdChainXBTCV2     		msg.ChainId = 14
+
+	IdSherpaXDOT			msg.ChainId = 201
+	IdSherpaXKSM			msg.ChainId = 202
 )
 
 var MultiSigLimit msg.ChainId = 100
@@ -75,7 +78,10 @@ func (bc *BridgeCore) MakeCrossChainTansferCall(m msg.Message, meta *types.Metad
 
 func (bc *BridgeCore) MakeBalanceTransferCall(m msg.Message, meta *types.Metadata, assetId xevents.AssetId) (types.Call, error) {
 	/// Get Recipient
-	recipient := bc.GetSubChainRecipient(m)
+	recipient, err := bc.GetSubChainRecipient(m)
+	if err != nil {
+		return types.Call{}, err
+	}
 
 	/// Get Amount
 	sendAmount, err := bc.GetAmountToSub(m.Payload[0].([]byte), assetId)
@@ -110,7 +116,10 @@ func (bc *BridgeCore) MakeBalanceTransferCall(m msg.Message, meta *types.Metadat
 
 func (bc *BridgeCore) MakeXAssetTransferCall(m msg.Message, meta *types.Metadata, assetId xevents.AssetId) (types.Call, error) {
 	/// GetRecipient
-	recipient := bc.GetSubChainRecipient(m)
+	recipient, err := bc.GetSubChainRecipient(m)
+	if err != nil {
+		return types.Call{}, err
+	}
 
 	/// GetAmount
 	sendAmount, err := bc.GetAmountToSub(m.Payload[0].([]byte), assetId)

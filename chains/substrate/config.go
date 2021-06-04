@@ -7,14 +7,34 @@ import (
 	log "github.com/ChainSafe/log15"
 	"github.com/centrifuge/go-substrate-rpc-client/v3/types"
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/rjman-ljm/go-substrate-crypto/ss58"
 	"github.com/rjman-ljm/sherpax-utils/msg"
 	"strconv"
 
 	"github.com/rjman-ljm/sherpax-utils/core"
 )
 
+// Chain specific options
+var (
+	StartBlockOpt         = "startBlock"
+	EndBlockOpt           = "endBlock"
+	LostAddressOpt        = "lostAddress"
+	UseExtendedCallOpt	  = "useExtendedCall"
+	TotalRelayerOpt       = "totalRelayer"
+	//OtherRelayerOpt	  = "otherRelayer"
+	RelayerIdOpt = "relayerId"
+	MultiSigAddressOpt      = "multiSigAddress"
+	MaxWeightOpt            = "maxWeight"
+	DestIdOpt               = "destId"
+	ResourceIdOpt           = "resourceId"
+	MultiSigThresholdOpt    = "multiSigThreshold"
+
+	OtherRelayerOpt       = "otherRelayer"
+)
+
+
 func parseStartBlock(cfg *core.ChainConfig) uint64 {
-	if blk, ok := cfg.Opts["StartBlock"]; ok {
+	if blk, ok := cfg.Opts[StartBlockOpt]; ok {
 		res, err := strconv.ParseUint(blk, 10, 32)
 		if err != nil {
 			panic(err)
@@ -24,7 +44,7 @@ func parseStartBlock(cfg *core.ChainConfig) uint64 {
 	return 0
 }
 func parseEndBlock(cfg *core.ChainConfig) uint64 {
-	if blk, ok := cfg.Opts["EndBlock"]; ok {
+	if blk, ok := cfg.Opts[EndBlockOpt]; ok {
 		res, err := strconv.ParseUint(blk, 10, 32)
 		if err != nil {
 			panic(err)
@@ -35,7 +55,7 @@ func parseEndBlock(cfg *core.ChainConfig) uint64 {
 }
 
 func parseLostAddress(cfg *core.ChainConfig) string {
-	if lostAddress, ok := cfg.Opts["LostAddress"]; ok {
+	if lostAddress, ok := cfg.Opts[LostAddressOpt]; ok {
 		return lostAddress
 	} else {
 		return ""
@@ -43,7 +63,7 @@ func parseLostAddress(cfg *core.ChainConfig) string {
 }
 
 func parseUseExtended(cfg *core.ChainConfig) bool {
-	if b, ok := cfg.Opts["useExtendedCall"]; ok {
+	if b, ok := cfg.Opts[UseExtendedCallOpt]; ok {
 		res, err := strconv.ParseBool(b)
 		if err != nil {
 			panic(err)
@@ -53,12 +73,26 @@ func parseUseExtended(cfg *core.ChainConfig) bool {
 	return false
 }
 
+func parseOtherRelayers(cfg *core.ChainConfig) []types.AccountID {
+	var otherSignatories []types.AccountID
+
+	for _, relayer := range cfg.OtherRelayer {
+		relayerPubkey, err := ss58.DecodeToPub(relayer)
+		if err != nil {
+			log.Error("otherRelayer set error")
+		}
+		address := types.NewAddressFromAccountID(relayerPubkey)
+		otherSignatories = append(otherSignatories, address.AsAccountID)
+	}
+	return otherSignatories
+}
+
 func parseOtherRelayer(cfg *core.ChainConfig) []types.AccountID {
 	var otherSignatories []types.AccountID
-	if totalRelayer, ok := cfg.Opts["TotalRelayer"]; ok {
+	if totalRelayer, ok := cfg.Opts[TotalRelayerOpt]; ok {
 		total, _ := strconv.ParseUint(totalRelayer, 10, 32)
 		for i := uint64(1); i < total; i++ {
-			relayedKey := "OtherRelayer" + string(strconv.Itoa(int(i)))
+			relayedKey := OtherRelayerOpt + strconv.Itoa(int(i))
 			if relayer, ok := cfg.Opts[relayedKey]; ok {
 				address, _ := types.NewAddressFromHexAccountID(relayer)
 				otherSignatories = append(otherSignatories, address.AsAccountID)
@@ -73,45 +107,41 @@ func parseOtherRelayer(cfg *core.ChainConfig) []types.AccountID {
 	return otherSignatories
 }
 
-func parseMultiSignConfig(cfg *core.ChainConfig) (uint64, uint64, uint16) {
+func parseMultiSigConfig(cfg *core.ChainConfig) (uint64, uint64, uint16) {
 	total := uint64(3)
 	current := uint64(1)
 	threshold := uint64(2)
-	if totalRelayer, ok := cfg.Opts["TotalRelayer"]; ok {
+	if totalRelayer, ok := cfg.Opts[TotalRelayerOpt]; ok {
 		total, _ = strconv.ParseUint(totalRelayer, 10, 32)
 	}
-	if currentRelayerNumber, ok := cfg.Opts["CurrentRelayerNumber"]; ok {
+	if currentRelayerNumber, ok := cfg.Opts[RelayerIdOpt]; ok {
 		current, _ = strconv.ParseUint(currentRelayerNumber, 10, 32)
 		if current == 0 {
 			log.Error("Please set config opts 'CurrentRelayerNumber' from 1 to ...!")
 		}
 	}
-	if multiSignThreshold, ok := cfg.Opts["MultiSignThreshold"]; ok {
-		threshold, _ = strconv.ParseUint(multiSignThreshold, 10, 32)
+	if multiSigThreshold, ok := cfg.Opts[MultiSigThresholdOpt]; ok {
+		threshold, _ = strconv.ParseUint(multiSigThreshold, 10, 32)
 	}
 	return total, current, uint16(threshold)
 }
 
-func parseMultiSignAddress(cfg *core.ChainConfig) types.AccountID {
-	if multisignAddress, ok := cfg.Opts["MultiSignAddress"]; ok {
-		multiSignPk, _ := types.HexDecodeString(multisignAddress)
-		multiSignAccount := types.NewAccountID(multiSignPk)
-		return multiSignAccount
+func parseMultiSigAddress(cfg *core.ChainConfig) types.AccountID {
+	if multiSigAddress, ok := cfg.Opts[MultiSigAddressOpt]; ok {
+		multiSigPk, err := ss58.DecodeToPub(multiSigAddress)
+		if err != nil {
+			log.Error("MultiSigAddressOpt set Error")
+		}
+		multiSigAccount := types.NewAccountID(multiSigPk)
+		return multiSigAccount
 	} else {
 		//log.Error("Polkadot MultiAddress Not Found")
 	}
 	return types.AccountID{}
 }
 
-func parseUrl(cfg *core.ChainConfig) string {
-	if len(cfg.Endpoint) > 0 {
-		return cfg.Endpoint
-	}
-	return ""
-}
-
 func parseMaxWeight(cfg *core.ChainConfig) uint64 {
-	if weight, ok := cfg.Opts["MaxWeight"]; ok {
+	if weight, ok := cfg.Opts[MaxWeightOpt]; ok {
 		res, _ := strconv.ParseUint(weight, 10, 32)
 		return res
 	}
@@ -119,7 +149,7 @@ func parseMaxWeight(cfg *core.ChainConfig) uint64 {
 }
 
 func parseDestId(cfg *core.ChainConfig) msg.ChainId {
-	if id, ok := cfg.Opts["DestId"]; ok {
+	if id, ok := cfg.Opts[DestIdOpt]; ok {
 		res, err := strconv.ParseUint(id, 10, 32)
 		if err != nil {
 			panic(err)
@@ -130,7 +160,7 @@ func parseDestId(cfg *core.ChainConfig) msg.ChainId {
 }
 
 func parseResourceId(cfg *core.ChainConfig) msg.ResourceId {
-	if resource, ok := cfg.Opts["ResourceId"]; ok {
+	if resource, ok := cfg.Opts[ResourceIdOpt]; ok {
 		return msg.ResourceIdFromSlice(common.FromHex(resource))
 	}
 	return msg.ResourceIdFromSlice(common.FromHex("0x0000000000000000000000000000000000000000000000000000000000000000"))

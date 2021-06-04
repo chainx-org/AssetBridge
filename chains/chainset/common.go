@@ -1,9 +1,9 @@
 package chainset
 
 import (
-	"github.com/JFJun/go-substrate-crypto/ss58"
-	utils "github.com/chainx-org/AssetBridge/shared/substrate"
 	"github.com/centrifuge/go-substrate-rpc-client/v3/types"
+	utils "github.com/chainx-org/AssetBridge/shared/substrate"
+	"github.com/rjman-ljm/go-substrate-crypto/ss58"
 	"github.com/rjman-ljm/sherpax-utils/msg"
 	"github.com/rjman-ljm/substrate-go/client"
 	"github.com/rjman-ljm/substrate-go/expand"
@@ -25,12 +25,20 @@ const (
 )
 
 var MultiSigLimit msg.ChainId = 100
+var SubstrateLimit msg.ChainId = 200
 
 const XParameter uint8 = 255
 
 // IsNativeTransfer Chain id distinguishes Tx types(Native, Fungible...)
 func IsMultiSigTransfer(id msg.ChainId) bool {
 	return id <= MultiSigLimit
+}
+func IsFungibleTransfer(id msg.ChainId) bool {
+	return !IsMultiSigTransfer(id) && !IsSubstrateTransfer(id)
+}
+
+func IsSubstrateTransfer(id msg.ChainId) bool {
+	return id >= SubstrateLimit
 }
 
 func (bc *BridgeCore) InitializeClientPrefix(cli *client.Client) {

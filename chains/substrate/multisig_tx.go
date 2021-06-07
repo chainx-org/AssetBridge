@@ -3,6 +3,7 @@ package substrate
 import (
 	"fmt"
 	"github.com/centrifuge/go-substrate-rpc-client/v3/types"
+	"github.com/chainx-org/AssetBridge/chains/chainset"
 	"github.com/rjman-ljm/go-substrate-crypto/ss58"
 	"github.com/rjman-ljm/sherpax-utils/msg"
 	"github.com/rjman-ljm/substrate-go/expand"
@@ -84,12 +85,12 @@ func (l *listener) dealBlockTx(resp *models.BlockResponse, currentBlock int64) {
 				continue
 			}
 
-			destId, recipient, err := l.parseRemark(e.Recipient)
+			destId, rId, recipient, err := l.parseRemark(e.Recipient)
 			if err != nil {
 				l.log.Error("parse remark error", "err", err)
 				continue
 			}
-			fmt.Printf("parse result, dest is %v, recipient is %v\n", destId, recipient)
+			fmt.Printf("dest is %v, rId is %v, addresss is %v\n", destId, rId, recipient)
 
 			depositNonce, _ := strconv.ParseInt(strconv.FormatInt(currentBlock, 10) + strconv.FormatInt(int64(e.ExtrinsicIndex), 10), 10, 64)
 
@@ -98,7 +99,7 @@ func (l *listener) dealBlockTx(resp *models.BlockResponse, currentBlock int64) {
 				destId,
 				msg.Nonce(depositNonce),
 				sendAmount,
-				l.resourceId,
+				rId,
 				recipient[:],
 			)
 			l.logReadyToSend(sendAmount, recipient, e)
@@ -107,32 +108,38 @@ func (l *listener) dealBlockTx(resp *models.BlockResponse, currentBlock int64) {
 	}
 }
 
-func (l *listener) parseRemark(res string) (msg.ChainId, []byte, error) {
-	offset := -1
+func (l *listener) parseRemark(res string) (msg.ChainId, msg.ResourceId, []byte, error) {
+	offset1 := -1
+	offset2 := -1
 	for i, v := range res {
-		if v == ',' {
-			offset = i
+		if v == ',' && offset1 < 0 {
+			offset1 = i
+			continue
+		}
+		if v == ',' && offset1 > 0 {
+			offset2 = i
+			break
 		}
 	}
-	if offset < 0 {
-		return msg.ChainId(0), nil, fmt.Errorf("remark value err, didn't parse out destId and recipient")
+	if offset1 < 0 || offset2 < 0 {
+		return msg.ChainId(0), msg.ResourceId{}, nil, fmt.Errorf("remark value err, didn't parse out destId, resourceId and address")
 	}
 
-	dest := res[:offset]
-	address := res[offset+1:]
-	fmt.Printf("dest is %v\naddresss is %v\n", dest, address)
+	dest := res[:offset1]
+	rId := chainset.ResourceIdPrefix + res[offset1+1:offset2]
+	address := res[offset2+1:]
 
 	destId, err := strconv.ParseInt(dest, 10, 64)
 	if err != nil {
-		fmt.Printf("parse remark_destId err, value is %v\n", destId)
-		return msg.ChainId(0), nil, fmt.Errorf("remark value err, didn't parse out destId and recipient")
+		fmt.Printf("parse remark_destId to int err, value is %v\n", destId)
+		return msg.ChainId(0), msg.ResourceId{}, nil, fmt.Errorf("parse remark_destId to int err")
 	}
 
 	var recipient []byte
 	if address[:2] != "0x" {
 		recipient, err = ss58.DecodeToPub(address)
 		if err != nil {
-			return msg.ChainId(0), nil, fmt.Errorf("convert to publicKey failed")
+			return msg.ChainId(0), msg.ResourceId{}, nil, fmt.Errorf("parse remark_address to publicKey failed")
 		}
 	} else {
 		recipient = []byte(address)
@@ -142,7 +149,7 @@ func (l *listener) parseRemark(res string) (msg.ChainId, []byte, error) {
 	//	recipient = recipientAccount[:]
 	//}
 
-	return msg.ChainId(destId), recipient, nil
+	return msg.ChainId(destId), l.bridgeCore.ConvertStringToResourceId(rId) , recipient, nil
 }
 
 func (l *listener) findLostTxByAddress(currentBlock int64, e *models.ExtrinsicResponse) bool {

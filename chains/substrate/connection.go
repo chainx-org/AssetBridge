@@ -173,7 +173,7 @@ func (c *Connection) SubmitTx(method utils.Method, args ...interface{}) error {
 		c.nonceLock.Unlock()
 		return err
 	}
-	c.log.Info("Sign the transaction...")
+	c.log.Info("Sign transaction...")
 
 	// Submit and watch the extrinsic
 	sub, err := c.api.RPC.Author.SubmitAndWatchExtrinsic(ext)

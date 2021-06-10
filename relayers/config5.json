@@ -1,0 +1,97 @@
+{
+	"Chains": [
+		{
+			"name": "bsc_bnb",
+			"type": "ethereum",
+			"id": "2",
+			"endpoint": [
+				"https://data-seed-prebsc-1-s3.binance.org:8545",
+				"http://localhost:8545"
+			],
+			"from": "0x5B6D51affc88595aBc65d5c133C231cAFD69aA9E",
+			"opts": {
+				"bridge": "0xeEc45984F86f35AF9F6489fd30a7f0aa655c08dB",
+				"erc20Handler": "0x04c20C38e015e52685ba7DC34E839960a23C03CC",
+				"internalAccount": "0x3DC0Ded73d906F64f466ef543E2f146b9Ae31454",
+				"asset": "0x0F898bD1E62d72CA8C282AfE2E22aa0815fFC544",
+				"http": "true",
+				"networkId": "97"
+			}
+		},
+		{
+			"name": "kovan_eth",
+			"type": "ethereum",
+			"id": "3",
+			"endpoint": [
+				"https://kovan.poa.network",
+				"http://localhost:8546"
+			],
+			"from": "0x5B6D51affc88595aBc65d5c133C231cAFD69aA9E",
+			"opts": {
+				"bridge": "0xf695b50c9C64e63b45A506909269D7B28B3a14Dc",
+				"erc20Handler": "0x5c44C427D1DEEe2E9955c850c7a98014c4E557b4",
+				"internalAccount": "0x3DC0Ded73d906F64f466ef543E2f146b9Ae31454",
+				"asset": "0xcDb4d48Fc2646EdD51992e6e80792f1FFDf0A6c6",
+				"http": "true",
+				"networkId": "42"
+			}
+		},
+		{
+			"name": "heco_ht",
+			"type": "ethereum",
+			"id": "4",
+			"endpoint": [
+				"https://http-testnet.hecochain.com",
+				"http://localhost:8547"
+			],
+			"from": "0x5B6D51affc88595aBc65d5c133C231cAFD69aA9E",
+			"opts": {
+				"bridge": "0x39b7FBbC38e4963A5cBCAd8d4A8ACbA21391CC55",
+				"erc20Handler": "0xf0723e55127406FcAA17C6B2E5d2e68459cF40a6",
+				"internalAccount": "0x3DC0Ded73d906F64f466ef543E2f146b9Ae31454",
+				"asset": "0x89226933DF521856C64425206187a50D7F78f140",
+				"http": "true",
+				"networkId": "256"
+			}
+		},
+		{
+			"name": "sherpax_asset_xasset",
+			"type": "substrate",
+			"id": "101",
+			"endpoint": [
+				"ws://localhost:9944"
+			],
+			"from": "5HHGiHzTrdbAUFihSC1pgCER41qdrQSxiEBvDsJ2titfAof2",
+			"opts": {},
+			"otherRelayer": [
+				"5CHwt8bFyDLC3MyzPQugmmxZTGjShBW2kFMWiC2kSL5TuJxd",
+				"5DtTcR48x8yWkSNwn6G1hjVnY61kCVT2SaGfKfU7WAHRvLKq",
+				"5FNTYUQwxjrVE5zRRH1hKh6fZ72AosHB7ThVnNnq9Bv9BFjm",
+				"5FnCTkAtgLinh6apZJwTX7n72H1A37MHE6xAXChZDbtUWMSg"
+			]
+		},
+		{
+			"name": "kusama_kusama",
+			"type": "substrate",
+			"id": "202",
+			"endpoint": [
+				"ws://localhost:9945"
+			],
+			"from": "5HHGiHzTrdbAUFihSC1pgCER41qdrQSxiEBvDsJ2titfAof2",
+			"opts": {
+				"multiSigAddress": "FYzLbRnPh7ZRkgDf23oziUzFfpokQzwRqpM9Xc6gMt2i21o",
+				"totalRelayer": "5",
+				"relayerId": "5",
+				"multiSigThreshold": "3",
+				"resourceId": "0x0000000000000000000000000000000000000000000000000000000000000007",
+				"maxWeight": "22698000000"
+			},
+			"otherRelayer": [
+				"5CHwt8bFyDLC3MyzPQugmmxZTGjShBW2kFMWiC2kSL5TuJxd",
+				"5DtTcR48x8yWkSNwn6G1hjVnY61kCVT2SaGfKfU7WAHRvLKq",
+				"5FNTYUQwxjrVE5zRRH1hKh6fZ72AosHB7ThVnNnq9Bv9BFjm",
+				"5FnCTkAtgLinh6apZJwTX7n72H1A37MHE6xAXChZDbtUWMSg"
+			]
+		}
+	]
+}

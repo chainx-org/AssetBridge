@@ -33,7 +33,7 @@ func EncodeToBytes(value interface{}) ([]byte, error) {
 }
 
 // queryStorage performs a storage lookup. Arguments may be nil, result must be a pointer.
-func (bc *BridgeCore) queryStorage(api *gsrpc.SubstrateAPI, meta *types.Metadata, prefix, method string, arg1, arg2 []byte, result interface{}) (bool, []byte, error) {
+func (bc *ChainCore) queryStorage(api *gsrpc.SubstrateAPI, meta *types.Metadata, prefix, method string, arg1, arg2 []byte, result interface{}) (bool, []byte, error) {
 	// Fetch account nonce
 	key, err := types.CreateStorageKey(meta, prefix, method, arg1, arg2)
 	if err != nil {
@@ -54,7 +54,7 @@ func (bc *BridgeCore) queryStorage(api *gsrpc.SubstrateAPI, meta *types.Metadata
 	return true, *raw, nil
 }
 
-func (bc *BridgeCore) ResourceIdToAssetId(api *gsrpc.SubstrateAPI, meta *types.Metadata, rId [32]byte) ([]byte, error) {
+func (bc *ChainCore) ResourceIdToAssetId(api *gsrpc.SubstrateAPI, meta *types.Metadata, rId [32]byte) ([]byte, error) {
 	var res []byte
 
 	rIdBytes, err := EncodeToBytes(rId)
@@ -74,7 +74,7 @@ func (bc *BridgeCore) ResourceIdToAssetId(api *gsrpc.SubstrateAPI, meta *types.M
 	return assetId, nil
 }
 
-func (bc *BridgeCore) AssetIdToResourceId(api *gsrpc.SubstrateAPI, meta *types.Metadata, assetId xevents.AssetId) ([]byte, error) {
+func (bc *ChainCore) AssetIdToResourceId(api *gsrpc.SubstrateAPI, meta *types.Metadata, assetId xevents.AssetId) ([]byte, error) {
 	//optionAssetId := NewOptionAssetId(assetId)
 	assetIdBytes, err := EncodeToBytes(assetId)
 	if err != nil {

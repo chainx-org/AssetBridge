@@ -89,7 +89,7 @@ const (
 	ResourceIdXAsset			string = ResourceIdPrefix + "999"
 )
 
-func (bc *BridgeCore) GetCurrencyByAssetId(assetId xevents.AssetId) (*Currency, error) {
+func (bc *ChainCore) GetCurrencyByAssetId(assetId xevents.AssetId) (*Currency, error) {
 	/// If token has assetId, return ChainX currency
 	for _, currency := range currencies {
 		if assetId != 0 && assetId == currency.AssetId {
@@ -104,11 +104,11 @@ func (bc *BridgeCore) GetCurrencyByAssetId(assetId xevents.AssetId) (*Currency, 
 	return nil, fmt.Errorf("unimplemented currency")
 }
 
-func (bc *BridgeCore) ConvertStringToResourceId(rId string) msg.ResourceId {
+func (bc *ChainCore) ConvertStringToResourceId(rId string) msg.ResourceId {
 	return msg.ResourceIdFromSlice(common.FromHex(rId))
 }
 
-func (bc *BridgeCore) GetCurrencyByResourceId(rId msg.ResourceId) (*Currency, error) {
+func (bc *ChainCore) GetCurrencyByResourceId(rId msg.ResourceId) (*Currency, error) {
 	for _, currency := range currencies {
 		if rId != bc.ConvertStringToResourceId(ResourceIdOrigin) && rId == bc.ConvertStringToResourceId(currency.ResourceId) {
 			return &currency, nil
@@ -122,7 +122,7 @@ func (bc *BridgeCore) GetCurrencyByResourceId(rId msg.ResourceId) (*Currency, er
 	return nil, fmt.Errorf("unimplemented currency")
 }
 
-func (bc *BridgeCore) ConvertResourceIdToAssetId(rId msg.ResourceId) (xevents.AssetId, error) {
+func (bc *ChainCore) ConvertResourceIdToAssetId(rId msg.ResourceId) (xevents.AssetId, error) {
 	for _, currency := range currencies {
 		if rId != bc.ConvertStringToResourceId(ResourceIdOrigin) && rId == bc.ConvertStringToResourceId(currency.ResourceId) {
 			return currency.AssetId, nil

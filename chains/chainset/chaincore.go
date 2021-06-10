@@ -6,16 +6,16 @@ import (
 
 type ChainType int
 
-type BridgeCore struct {
+type ChainCore struct {
 	ChainName		string
 	ChainInfo    	*ChainInfo
 }
 
-func NewBridgeCore(name string) *BridgeCore {
+func NewBridgeCore(name string) *ChainCore {
 	prefix := GetChainPrefix(name)
 	chainInfo := GetChainInfo(prefix)
 
-	return &BridgeCore{
+	return &ChainCore{
 		ChainName: name,
 		ChainInfo: chainInfo,
 	}

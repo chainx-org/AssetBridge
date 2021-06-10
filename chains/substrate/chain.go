@@ -110,7 +110,7 @@ func InitializeChain(cfg *core.ChainConfig, logger log15.Logger, sysErr chan<- e
 	otherRelayers := parseOtherRelayers(cfg)
 	multiSigAddress := parseMultiSigAddress(cfg)
 	total, currentRelayer, threshold := parseMultiSigConfig(cfg)
-	weight := parseMaxWeight(cfg)
+	maxWeight := parseMaxWeight(cfg)
 	dest := parseDestId(cfg)
 	resource := parseResourceId(cfg)
 
@@ -118,7 +118,7 @@ func InitializeChain(cfg *core.ChainConfig, logger log15.Logger, sysErr chan<- e
 	//fmt.Printf("chain: %v\n", bc.ChainInfo)
 
 	/// Set relayer parameters
-	relayer := NewRelayer(*krp, otherRelayers, total, threshold, currentRelayer)
+	relayer := NewRelayer(*krp, otherRelayers, total, threshold, currentRelayer, maxWeight)
 
 	bc := chainset.NewBridgeCore(cfg.Name)
 	bc.InitializeClientPrefix(conn.cli)
@@ -126,7 +126,7 @@ func InitializeChain(cfg *core.ChainConfig, logger log15.Logger, sysErr chan<- e
 	/// Setup listener & writer
 	l := NewListener(conn, cfg.Name, cfg.Id, startBlock, endBlock, lostAddress,
 		logger, bs, stop, sysErr, m, multiSigAddress, resource, dest, relayer, bc)
-	w := NewWriter(conn, l, logger, sysErr, m, useExtended, weight, relayer, bc)
+	w := NewWriter(conn, l, logger, sysErr, m, useExtended, relayer, bc)
 
 	return &Chain{
 		cfg:      cfg,

@@ -35,14 +35,12 @@ type writer struct {
 	metrics    *metrics.ChainMetrics
 	extendCall bool // Extend extrinsic calls to substrate with ResourceID.Used for backward compatibility with example pallet.
 	relayer    Relayer
-	maxWeight  uint64
 	messages   map[Dest]bool
-	bridgeCore *chainset.BridgeCore
+	chainCore  *chainset.ChainCore
 }
 
 func NewWriter(conn *Connection, listener *listener, log log15.Logger, sysErr chan<- error,
-	m *metrics.ChainMetrics, extendCall bool, weight uint64, relayer Relayer, bc *chainset.BridgeCore) *writer {
-
+	m *metrics.ChainMetrics, extendCall bool, relayer Relayer, bc *chainset.ChainCore) *writer {
 	return &writer{
 		conn:       conn,
 		listener:   listener,
@@ -51,9 +49,8 @@ func NewWriter(conn *Connection, listener *listener, log log15.Logger, sysErr ch
 		metrics:    m,
 		extendCall: extendCall,
 		relayer:    relayer,
-		maxWeight:  weight,
 		messages:   make(map[Dest]bool, InitCapacity),
-		bridgeCore: bc,
+		chainCore:  bc,
 	}
 }
 
@@ -105,7 +102,7 @@ func (w *writer) ResolveMessage(m msg.Message) bool {
 				continue
 			}
 
-			assetId , err := w.bridgeCore.ConvertResourceIdToAssetId(msg.ResourceId(prop.resourceId))
+			assetId , err := w.chainCore.ConvertResourceIdToAssetId(msg.ResourceId(prop.resourceId))
 			if err != nil {
 				w.logErr("rId to assetId err", err)
 			}
@@ -149,7 +146,7 @@ func (w *writer) checkRepeat(m msg.Message) bool {
 	return true
 }
 
-func (w *writer) redeemTx(message *Msg) (bool, multiSigTx) {
+func (w *writer) redeemTx(message *MsgStatus) (RedeemStatusCode, multiSigTx) {
 	//w.UpdateMetadata()
 	m := message.m
 	types.SetSerDeOptions(types.SerDeOptions{NoPalletIndices: true})
@@ -160,15 +157,16 @@ func (w *writer) redeemTx(message *Msg) (bool, multiSigTx) {
 	}()
 
 	/// BEGIN: Create a call of multiSigTransfer
-	c, ok, isFinish, currentTx := w.getCall(m)
-	if !ok {
-		return isFinish, currentTx
+	c, err := w.getCall(m)
+	if err != nil {
+		w.logErr("Get call err", err)
+		return UnKnownError, multiSigTx{}
 	}
 
-	actualAmount, err := w.getSendToSubAmount(m, w.getRedeemAssetId(m))
+	actualAmount, err := w.chainCore.GetAmountToSub(m.Payload[0].([]byte), w.getRedeemAssetId(m))
 	if err != nil {
 		w.log.Error(RedeemNegAmountError, "Error", err)
-		return isFinish, UnKnownError
+		return UnKnownError, multiSigTx{}
 	}
 
 	for {
@@ -184,22 +182,21 @@ func (w *writer) redeemTx(message *Msg) (bool, multiSigTx) {
 			// Traverse all of matched Tx, included New、Approve、Executed
 			for _, ms := range w.listener.asMulti {
 				// Validate parameter
-				fmt.Printf("verify %v\n", w.verifyRedeemAddress(m.Payload[1].([]byte), ms.DestAddress))
-				fmt.Printf("m.Payload[1].([]byte) is %v\n, ms.DestAddress is %v\n", m.Payload[1].([]byte), ms.DestAddress)
+				fmt.Printf("verify msg.Address and ms.DestAddress: %v\n", w.verifyRedeemAddress(m.Payload[1].([]byte), ms.DestAddress))
+				//fmt.Printf("m.Payload[1].([]byte) is %v\nms.DestAddress is %v\n", m.Payload[1].([]byte), ms.DestAddress)
 				if w.verifyRedeemAddress(m.Payload[1].([]byte), ms.DestAddress) && ms.DestAmount == actualAmount.String() {
 					/// Once multiSig Extrinsic is executed, stop sending Extrinsic to Polkadot
-					finished, executed := w.isFinish(ms, m)
-					if finished {
-						return finished, executed
+					status, executed := w.checkRedeemStatus(ms, m)
+					if status.finished() {
+						return status, executed
 					}
 
 					/// Match the correct TimePoint
-					height := types.U32(ms.OriginMsTx.Block)
 					maybeTimePoint = TimePointSafe32{
-						Height: types.NewOptionU32(height),
+						Height: types.NewOptionU32(types.U32(ms.OriginMsTx.Block)),
 						Index:  types.U32(ms.OriginMsTx.TxId),
 					}
-					maxWeight = types.Weight(w.maxWeight)
+					maxWeight = types.Weight(w.relayer.maxWeight)
 					break
 				} else {
 					maybeTimePoint = []byte{}
@@ -217,20 +214,31 @@ func (w *writer) redeemTx(message *Msg) (bool, multiSigTx) {
 				w.log.Info(TryToApproveMultiSigTx, "Block", height, "Index", maybeTimePoint.(TimePointSafe32).Index, "depositNonce", m.DepositNonce)
 			}
 
-			mc, err := types.NewCall(&w.conn.meta, string(utils.MultisigAsMulti), w.relayer.multiSigThreshold, w.relayer.otherSignatories, maybeTimePoint, EncodeCall(c), false, maxWeight)
+			mc, err := types.NewCall(
+				&w.conn.meta,
+				string(utils.MultisigAsMulti),
+				w.relayer.multiSigThreshold,
+				w.relayer.otherSignatories,
+				maybeTimePoint,
+				EncodeCall(c),
+				false,
+				maxWeight,
+			)
 			if err != nil {
 				w.logErr(NewMultiCallError, err)
+				return UnKnownError, multiSigTx{}
 			}
 
 			w.submitTx(mc)
-			return false, NotExecuted
+			return NotExecuted, multiSigTx{}
 		} else {
 			if message.ok {
 				fmt.Printf("%v hasVote, check tx status\n", w.relayer.relayerId)
 			}
-			finished, executed := w.checkRedeem(m, actualAmount)
-			if finished {
-				return finished, executed
+
+			status, executed := w.checkRedeem(m, actualAmount)
+			if status.finished() {
+				return status, executed
 			} else {
 				///Round over, wait a RoundInterval
 				time.Sleep(RoundInterval)
@@ -251,7 +259,7 @@ func (w *writer) getRedeemAssetId(m msg.Message) xevents.AssetId {
 }
 
 func (w *writer) getSendToSubAmount(m msg.Message, assetId xevents.AssetId) (*big.Int, error) {
-	sendAmount, err := w.bridgeCore.GetAmountToSub(m.Payload[0].([]byte), assetId)
+	sendAmount, err := w.chainCore.GetAmountToSub(m.Payload[0].([]byte), assetId)
 	if err != nil {
 		return nil, fmt.Errorf("eth2sub redeem a neg amount")
 	}
@@ -265,19 +273,16 @@ func (w *writer) ConvertToEthMessage(m msg.Message) (msg.Message, error) {
 	return m, nil
 }
 
-func (w *writer) getCall(m msg.Message) (types.Call, bool, bool, multiSigTx) {
-	var c types.Call
-	var err error
-
-	c, err = w.bridgeCore.MakeCrossChainTansferCall(m, &w.conn.meta, w.getRedeemAssetId(m))
+func (w *writer) getCall(m msg.Message) (types.Call, error) {
+	c, err := w.chainCore.MakeCrossChainTansferCall(m, &w.conn.meta, w.getRedeemAssetId(m))
 	if err != nil {
 		w.log.Error(NewCrossChainTransferCallError, "Error", err)
-		return types.Call{}, false, true, UnKnownError
+		return types.Call{}, err
 	}
-	return c, true, false, NotExecuted
+	return c, nil
 }
 
-func (w *writer) checkRedeem(m msg.Message, actualAmount *big.Int) (bool, multiSigTx) {
+func (w *writer) checkRedeem(m msg.Message, actualAmount *big.Int) (RedeemStatusCode, multiSigTx) {
 	for _, ms := range w.listener.asMulti {
 		// Validate parameter
 		//var destAddress string
@@ -290,10 +295,10 @@ func (w *writer) checkRedeem(m msg.Message, actualAmount *big.Int) (bool, multiS
 
 		if w.verifyRedeemAddress(m.Payload[1].([]byte), ms.DestAddress) && ms.DestAmount == actualAmount.String() {
 			/// Once multiSig Extrinsic is executed, stop sending Extrinsic to Polkadot
-			return w.isFinish(ms, m)
+			return w.checkRedeemStatus(ms, m)
 		}
 	}
-	return false, NotExecuted
+	return NotExecuted, multiSigTx{}
 }
 
 func (w *writer) verifyRedeemAddress(msgAddress []byte, msAddress string) bool {
@@ -414,10 +419,10 @@ func (w *writer) getRound() (Round, uint64) {
 	return round, blockHeight.Uint64()
 }
 
-func (w *writer) isFinish(ms MultiSigAsMulti, m msg.Message) (bool, multiSigTx) {
+func (w *writer) checkRedeemStatus(ms MultiSigAsMulti, m msg.Message) (RedeemStatusCode, multiSigTx) {
 	/// Check isExecuted
 	if ms.Executed {
-		return true, ms.OriginMsTx
+		return IsExecuted, ms.OriginMsTx
 	}
 
 	/// Check isVoted
@@ -434,11 +439,11 @@ func (w *writer) isFinish(ms MultiSigAsMulti, m msg.Message) (bool, multiSigTx) 
 
 		if isVote {
 			w.log.Info("relayer has vote, wait others!", "DepositNonce", m.DepositNonce, "Relayer", w.relayer.relayerId, "Block", ms.OriginMsTx.Block, "Index", ms.OriginMsTx.TxId)
-			return true, YesVoted
+			return YesVoted, multiSigTx{}
 		}
 	}
 
-	return false, NotExecuted
+	return NotExecuted, multiSigTx{}
 }
 
 func (w *writer) getApi() (*gsrpc.SubstrateAPI, error) {

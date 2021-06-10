@@ -30,11 +30,11 @@ type writer struct {
 	stop           <-chan int
 	sysErr         chan<- error // Reports fatal error to core
 	metrics        *metrics.ChainMetrics
-	bridgeCore     *chainset.BridgeCore
+	bridgeCore     *chainset.ChainCore
 }
 
 // NewWriter creates and returns writer
-func NewWriter(conn Connection, cfg *Config, log log15.Logger, kp secp256k1.Keypair, stop <-chan int, sysErr chan<- error, m *metrics.ChainMetrics, bc *chainset.BridgeCore) *writer {
+func NewWriter(conn Connection, cfg *Config, log log15.Logger, kp secp256k1.Keypair, stop <-chan int, sysErr chan<- error, m *metrics.ChainMetrics, bc *chainset.ChainCore) *writer {
 	return &writer{
 		cfg:     *cfg,
 		conn:    conn,

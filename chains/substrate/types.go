@@ -16,6 +16,20 @@ import (
 	"time"
 )
 
+
+type RedeemStatusCode int
+
+const (
+	IsExecuted      RedeemStatusCode = iota
+	NotExecuted
+	YesVoted
+	UnKnownError
+)
+
+func (code RedeemStatusCode)finished() bool {
+	return code == YesVoted || code == IsExecuted || code == UnKnownError
+}
+
 const (
 
 	FindNewMultiSigTx 						string = "Find a multiSig New extrinsic"
@@ -59,21 +73,6 @@ const (
 	ProcessBlockError                     	string = "ProcessBlock err, check it"
 )
 
-var UnKnownError = multiSigTx{
-	Block: -2,
-	TxId:  0,
-}
-
-var NotExecuted = multiSigTx{
-	Block: -1,
-	TxId:  0,
-}
-
-var YesVoted = multiSigTx{
-	Block: -1,
-	TxId:  1,
-}
-
 type TimePointSafe32 struct {
 	Height types.OptionU32
 	Index  types.U32
@@ -84,18 +83,17 @@ type Round struct {
 	blockRound  *big.Int
 }
 
-type Msg struct {
+type MsgStatus struct {
 	m 	msg.Message
 	ok 	bool
 }
 
-func NewMsg(msg msg.Message) *Msg {
-	return &Msg{
+func NewMsg(msg msg.Message) *MsgStatus {
+	return &MsgStatus{
 		m: msg,
 		ok: false,
 	}
 }
-
 
 type Dest struct {
 	DepositNonce msg.Nonce
@@ -158,6 +156,24 @@ func (p *proposal) encode() ([]byte, error) {
 	}{p.depositNonce, p.call})
 }
 
+func (w *writer) deleteMessage(m msg.Message, currentTx multiSigTx) {
+	var mutex sync.Mutex
+	mutex.Lock()
+
+	/// Delete Listener msTx
+	delete(w.listener.asMulti, currentTx)
+
+	/// Delete Message
+	dm := Dest{
+		DepositNonce: m.DepositNonce,
+		DestAddress:  string(m.Payload[1].([]byte)),
+		DestAmount:   string(m.Payload[0].([]byte)),
+	}
+	delete(w.messages, dm)
+
+	mutex.Unlock()
+}
+
 func (w *writer) createMultiSigTx(m msg.Message) {
 	/// If there is a duplicate transaction, wait for it to complete
 	w.checkRepeat(m)
@@ -206,59 +222,28 @@ func (w *writer) createMultiSigTx(m msg.Message) {
 				w.logErr(RedeemTxTryTooManyTimes, nil)
 				break
 			}
-			isFinished, currentTx := w.redeemTx(message)
-			if isFinished {
-				var mutex sync.Mutex
-				mutex.Lock()
 
-				/// If curTx is UnKnownError
-				if currentTx == UnKnownError {
-					w.log.Error(MultiSigExtrinsicError, "DepositNonce", m.DepositNonce)
+			redeemStatus, currentTx := w.redeemTx(message)
 
-					var mutex sync.Mutex
-					mutex.Lock()
+			/// If curTx is UnKnownError
+			if redeemStatus == UnKnownError {
+				w.log.Error(MultiSigExtrinsicError, "DepositNonce", m.DepositNonce)
+				w.deleteMessage(m, currentTx)
+				break
+			}
 
-					/// Delete Listener msTx
-					delete(w.listener.asMulti, currentTx)
+			/// If curTx is voted
+			if redeemStatus == YesVoted {
+				message.ok = true
+				time.Sleep(RoundInterval * time.Duration(w.relayer.totalRelayers) / 2)
+				continue
+			}
 
-					/// Delete Message
-					dm := Dest{
-						DepositNonce: m.DepositNonce,
-						DestAddress:  string(m.Payload[1].([]byte)),
-						DestAmount:   string(m.Payload[0].([]byte)),
-					}
-					delete(w.messages, dm)
-
-					mutex.Unlock()
-					break
-				}
-
-				/// If curTx is voted
-				if currentTx == YesVoted {
-					message.ok = true
-					time.Sleep(RoundInterval * time.Duration(w.relayer.totalRelayers) / 2)
-				}
-				/// Executed or UnKnownError
-				if currentTx != YesVoted && currentTx != NotExecuted && currentTx != UnKnownError {
-					w.log.Info(MultiSigExtrinsicExecuted, "DepositNonce", m.DepositNonce, "OriginBlock", currentTx.Block)
-
-					var mutex sync.Mutex
-					mutex.Lock()
-
-					/// Delete Listener msTx
-					delete(w.listener.asMulti, currentTx)
-
-					/// Delete Message
-					dm := Dest{
-						DepositNonce: m.DepositNonce,
-						DestAddress:  string(m.Payload[1].([]byte)),
-						DestAmount:   string(m.Payload[0].([]byte)),
-					}
-					delete(w.messages, dm)
-
-					mutex.Unlock()
-					break
-				}
+			/// Executed or UnKnownError
+			if redeemStatus == IsExecuted {
+				w.log.Info(MultiSigExtrinsicExecuted, "DepositNonce", m.DepositNonce, "OriginBlock", currentTx.Block)
+				w.deleteMessage(m, currentTx)
+				break
 			}
 		}
 		w.log.Info(FinishARedeemTx, "DepositNonce", m.DepositNonce)
@@ -266,17 +251,17 @@ func (w *writer) createMultiSigTx(m msg.Message) {
 }
 
 func (w *writer) createFungibleProposal(m msg.Message) (*proposal, error) {
-	assetId, err := w.bridgeCore.ConvertResourceIdToAssetId(m.ResourceId)
+	assetId, err := w.chainCore.ConvertResourceIdToAssetId(m.ResourceId)
 	if err != nil {
 		return nil, err
 	}
 
-	sendAmount, err := w.bridgeCore.GetAmountToSub(m.Payload[0].([]byte), assetId)
+	sendAmount, err := w.chainCore.GetAmountToSub(m.Payload[0].([]byte), assetId)
 	if err != nil {
 		return nil, fmt.Errorf("create fungible proposal error, neg amount")
 	}
 
-	recipient, err := w.bridgeCore.GetSubChainRecipient(m)
+	recipient, err := w.chainCore.GetSubChainRecipient(m)
 	if err != nil {
 		return nil, err
 	}
@@ -323,7 +308,7 @@ func (w *writer) createFungibleProposal(m msg.Message) (*proposal, error) {
 
 func (w *writer) createNonFungibleProposal(m msg.Message) (*proposal, error) {
 	tokenId := types.NewU256(*big.NewInt(0).SetBytes(m.Payload[0].([]byte)))
-	recipient, err := w.bridgeCore.GetSubChainRecipient(m)
+	recipient, err := w.chainCore.GetSubChainRecipient(m)
 	if err != nil {
 		return nil, err
 	}

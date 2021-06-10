@@ -42,7 +42,7 @@ type listener struct {
 	resourceId    msg.ResourceId
 	destId        msg.ChainId
 	relayer       Relayer
-	bridgeCore    *chainset.BridgeCore
+	bridgeCore    *chainset.ChainCore
 }
 
 var ErrBlockNotReady = errors.New("required result to be 32 bytes, but got 0")
@@ -62,7 +62,7 @@ const(
 
 func NewListener(conn *Connection, name string, id msg.ChainId, startBlock uint64, endBlock uint64, lostAddress string,
 	log log15.Logger, bs blockstore.Blockstorer, stop <-chan int, sysErr chan<- error, m *metrics.ChainMetrics,
-	multiSigAddress types.AccountID, resource msg.ResourceId, dest msg.ChainId, relayer Relayer, bc *chainset.BridgeCore) *listener {
+	multiSigAddress types.AccountID, resource msg.ResourceId, dest msg.ChainId, relayer Relayer, bc *chainset.ChainCore) *listener {
 	return &listener{
 		name:          	name,
 		chainId:       	id,

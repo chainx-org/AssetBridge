@@ -44,7 +44,7 @@ func IsSubstrateTransfer(id msg.ChainId) bool {
 	return id >= SubstrateLimit
 }
 
-func (bc *BridgeCore) InitializeClientPrefix(cli *client.Client) {
+func (bc *ChainCore) InitializeClientPrefix(cli *client.Client) {
 	switch bc.ChainInfo.Type {
 	case PolkadotLike:
 		cli.SetPrefix(ss58.PolkadotPrefix)
@@ -65,7 +65,7 @@ func (bc *BridgeCore) InitializeClientPrefix(cli *client.Client) {
 	}
 }
 
-func (bc *BridgeCore) MakeCrossChainTansferCall(m msg.Message, meta *types.Metadata, assetId xevents.AssetId) (types.Call, error) {
+func (bc *ChainCore) MakeCrossChainTansferCall(m msg.Message, meta *types.Metadata, assetId xevents.AssetId) (types.Call, error) {
 	switch bc.ChainInfo.Type {
 	case ChainXAssetLike:
 		return bc.MakeXAssetTransferCall(m, meta, assetId)
@@ -76,7 +76,7 @@ func (bc *BridgeCore) MakeCrossChainTansferCall(m msg.Message, meta *types.Metad
 	}
 }
 
-func (bc *BridgeCore) MakeBalanceTransferCall(m msg.Message, meta *types.Metadata, assetId xevents.AssetId) (types.Call, error) {
+func (bc *ChainCore) MakeBalanceTransferCall(m msg.Message, meta *types.Metadata, assetId xevents.AssetId) (types.Call, error) {
 	/// Get Recipient
 	recipient, err := bc.GetSubChainRecipient(m)
 	if err != nil {
@@ -114,7 +114,7 @@ func (bc *BridgeCore) MakeBalanceTransferCall(m msg.Message, meta *types.Metadat
 	return c, nil
 }
 
-func (bc *BridgeCore) MakeXAssetTransferCall(m msg.Message, meta *types.Metadata, assetId xevents.AssetId) (types.Call, error) {
+func (bc *ChainCore) MakeXAssetTransferCall(m msg.Message, meta *types.Metadata, assetId xevents.AssetId) (types.Call, error) {
 	/// GetRecipient
 	recipient, err := bc.GetSubChainRecipient(m)
 	if err != nil {
